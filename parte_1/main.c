@@ -96,7 +96,11 @@ int main( int32_t argc, char **argv )
      return 1;
   }
 
-  printf( "Ip Address  : %s\n", inet_ntoa( *( ( struct in_addr * ) dest->h_addr_list[ 0 ] ) ) );
+  if ( listen( socket_file_descriptor, 10 ) == -1 )
+  {
+    perror( "listen" );
+    return 1;
+  }
 
   struct sockaddr_in dest_address;
   dest_address.sin_family       = AF_INET;
@@ -104,14 +108,44 @@ int main( int32_t argc, char **argv )
   dest_address .sin_addr        = *( (struct in_addr *)dest->h_addr_list[ 0 ] );
   memset( &( host_address.sin_zero ), '\0',  8 );
 
-  if( connect_server( socket_file_descriptor, dest_address ) != 0 )
+  if ( connect_server( socket_file_descriptor, dest_address ) != 0 )
   {
     return 1;
   }
 
+  printf( "Connecting on Ip Address: %s\n", inet_ntoa( *( ( struct in_addr * ) dest->h_addr_list[ 0 ] ) ) );
+
+
+  // Sending
   char* final_request[ 100 ];
   char* path_to_file = "index.html";
   sprintf( final_request, "GET %s HTTP/1.0", path_to_file );
+  int32_t len = strlen( final_request );
+  int32_t bytes_sent = send( socket_file_descriptor, final_request, len, 0 );
+  if ( bytes_sent != len )
+  {
+    return 1;
+  }
+
+  int accepted_socket_fd = accept( socket_file_descriptor, ( struct sockaddr* )&dest_address, sizeof( struct sockaddr ) );
+  if ( accepted_socket_fd == -1 )
+  {
+    perror( "accept" );
+    return 1;
+  }
+
+  // Receiving
+  const uint8_t max_data_size = 256;
+  char *buffer[ max_data_size ];
+  int32_t read_bytes = 0;
+  if ( read_bytes = recv( socket_file_descriptor, buffer, max_data_size - 1, 0 ) == -1 )
+  {
+    perror( "recv" );
+    exit( 1 );
+  }
+
+  buffer[ read_bytes ] = '\0';
+  printf( "Received: %s\n", buffer );
 
 
   fd_set readfds;
