@@ -63,64 +63,44 @@ int handle_arguments(int argc,
                      char *resource_required,
                      FILE **output)
 {
-  const int32_t number_of_elements = 3;
+  const int32_t  number_of_elements   = 3;
+  const int32_t  number_of_elements_with_flag = 4;
+  const uint32_t index_of_uri         = 1;
+  const uint32_t index_of_output_file = 2;
+  const uint32_t index_of_flag        = 3;
+
+
   if (argc < number_of_elements)
   {
     printf("wrong number of arguments");
-    exit(1);
+    return -1;
   }
 
-  struct addrinfo hints, *res;
-  //char ip_string[INET6_ADDRSTRLEN];
-
+  struct addrinfo hints;
+  struct addrinfo *res;
   memset(&hints, 0, sizeof(hints));
   hints.ai_family   = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
 
   char hostname[50];
-  get_resource(argv[1], hostname, resource_required);
+  get_resource(argv[index_of_uri], hostname, resource_required);
 
-  /*Get */
+  /*Get addrinfo*/
   int32_t status = getaddrinfo(hostname, "80", &hints, &res);
   if (status != 0)
   {
     printf("getaddrinfo: %s\n", gai_strerror(status));
-    exit(1);
+    return -1;
   }
-
-  /*printf("IP adresses for %s :", hostname);
-
-  struct addrinfo *p;
-  for ( p = res; p != NULL; p = p->ai_next )
-  {
-    void *addr;
-    char ip_version[ 50 ];
-
-    if ( p->ai_family == AF_INET )
-    {
-      struct sockaddr_in *ipv4 = (struct sockaddr_in *)p->ai_addr;
-      addr = &( ipv4->sin_addr );
-      strncpy( ip_version, "IPv4", 5 );
-    }
-    else
-    {
-      struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)p->ai_addr;
-      addr = &( ipv6->sin6_addr );
-      strncpy( ip_version, "IPv6", 5 );
-    }
-
-    inet_ntop(p->ai_family, addr, ip_string, sizeof(ip_string));
-    printf( " %s: %s\n", ip_version, ip_string );
-  }*/
 
   *server_info = res;
 
   /* Verify the overwrite flag existence */
   const char* overwrite_flag = "over";
-  char* file_name = argv[2];
+  char* file_name = argv[index_of_output_file];
   uint8_t ovewrite = 0;
-  if ((argc == 4) &&
-     (strncmp( argv[3], overwrite_flag, strlen(overwrite_flag)) == 0))
+  if ((argc == number_of_elements_with_flag) &&
+     (strncmp(argv[index_of_flag], overwrite_flag, strlen(overwrite_flag)) == 0))
   {
     ovewrite = 1;
   }
@@ -132,19 +112,23 @@ int main(int argc, char **argv)
 {
   struct addrinfo *server_info = NULL;
   FILE            *output_file = NULL;
-  char		         resource_required[ 50 ];
+  char		         resource_required[ 100 ];
 
+  int32_t ret =  0;
+  int socket_descriptor = -1;
   if (handle_arguments(argc, argv, &server_info, resource_required, &output_file) != 0)
   {
     printf( "Couldn't handle arguments\n" );
-    return 1;
+    ret = -1;
+    goto exit;
   }
 
-  int socket_descriptor = socket(server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol);
+  socket_descriptor = socket(server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol);
   if (socket_descriptor == -1)
   {
     perror("socket");
-    exit(1);
+    ret = -1;
+    goto exit;
   }
 
   printf("Trying to Connect..");
@@ -153,7 +137,8 @@ int main(int argc, char **argv)
   if (status == -1)
   {
     perror("connect");
-    exit(1);
+    ret = -1;
+    goto exit;
   }
 
   printf("Connected!\n");
@@ -161,15 +146,25 @@ int main(int argc, char **argv)
   const int32_t transmission_rate = 512;
   if (download_file(socket_descriptor, resource_required, transmission_rate, output_file ) != 0)
   {
-    close( socket_descriptor );
-    freeaddrinfo(server_info);
-    fclose(output_file);
-    return -1;
+    ret = -1;
+    goto exit;
   }
 
-  close( socket_descriptor );
-  freeaddrinfo(server_info);
-  fclose(output_file);
-  return 0;
+ exit:
+  if( socket_descriptor != -1)
+  {
+    close( socket_descriptor );
+  }
+
+  if( server_info != NULL )
+  {
+    freeaddrinfo(server_info);
+  }
+  if( output_file != NULL )
+  {
+    fclose(output_file);
+  }
+
+  return ret;
 }
 

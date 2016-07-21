@@ -23,7 +23,7 @@ uint32_t handle_response_status(char *http_response)
   char error_string[ 30 ];
   int32_t status = 0;
 
-  if( sscanf( http_response,"HTTP/1.0 %d %s", &status, error_string) != 2 )
+  if( sscanf( http_response,"HTTP/%*s %d %s\r\n", &status, error_string) != 2 )
   {
     printf("Coudn't parse HTTP Status\n");
     return -1;
@@ -38,31 +38,31 @@ uint32_t handle_response_status(char *http_response)
       break;
   case Not_Found:
       {
-        printf("Resource not found in server. Status: %s", error_string);
+        printf("Resource not found in server. Status: %s\n", error_string);
         return -1;
       }
       break;
   case MovedPermanently:
       {
-        printf("Resource was permanently move from the server. Status: %s", error_string);
+        printf("Resource was permanently move from the server. Status: %s\n", error_string);
         return -1;
       }
       break;
   case MovedTemporarily:
       {
-        printf("Resource was temporarily move from the server. Status: %s", error_string);
+        printf("Resource was temporarily move from the server. Status: %s\n", error_string);
         return -1;
       }
       break;
   case ServerError:
       {
-        printf("Server error. Status: %s", error_string);
+        printf("Server error. Status: %s\n", error_string);
         return -1;
       }
       break;
   default:
       {
-        printf("Unknown error status. Status: %s", error_string);
+        printf("Unknown error status. Status: %s\n", error_string);
         return -1;
       }
       break;
@@ -103,11 +103,11 @@ int32_t get_header(int socket_descriptor, char *resource_required, int32_t *head
 
 void get_resource(char *uri, char *hostname, char *resource)
 {
-  const char *protocol_suffix = "http://";
-  char *pointer = strstr(uri, protocol_suffix);
+  const char *protocol_suffix_end = "://";
+  char *pointer = strstr(uri, protocol_suffix_end);
   if( pointer != NULL )
   {
-    pointer += strlen( protocol_suffix );
+    pointer += strlen( protocol_suffix_end );
     sscanf(pointer, "%[^/]%s", hostname, resource);
   }
   else
@@ -120,8 +120,12 @@ int32_t download_file(int socket_descriptor, char *resource_required, int32_t tr
 {
   int resource_required_length = strlen(resource_required);
 
-  char request_msg[ 80 ];
-  sprintf(request_msg, "GET %s HTTP/1.0\r\n\r\n", (resource_required_length != 0) ? resource_required : "/index.html");
+  char *request_mask = "GET %s HTTP/1.0\r\n\r\n";
+  char *request_msg = malloc(sizeof(char)*(strlen(request_mask) + resource_required_length + 1));
+  sprintf(request_msg, request_mask, (resource_required_length != 0) ? resource_required : "/index.html");
+
+  printf( "%s\n", request_msg );
+
   int32_t request_len = strlen(request_msg);
   int32_t bytes_sent = send(socket_descriptor, request_msg, request_len, 0);
   if (bytes_sent != request_len)
@@ -129,6 +133,7 @@ int32_t download_file(int socket_descriptor, char *resource_required, int32_t tr
     printf("Coudn't send entire request\n");
     return -1;
   }
+  free(request_msg);
 
   int32_t header_length  = 0;
   int32_t content_length = 0;
@@ -136,7 +141,6 @@ int32_t download_file(int socket_descriptor, char *resource_required, int32_t tr
   {
     return -1;
   }
-
 
   char *header = malloc(sizeof(char)*header_length);
   char *carriage = header;
