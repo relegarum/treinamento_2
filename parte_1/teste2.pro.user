@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 4.0.2, 2016-07-21T08:48:39. -->
+<!-- Written by QtCreator 4.0.2, 2016-07-21T14:27:12. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -306,10 +306,10 @@
     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">teste22</value>
     <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qt4ProjectManager.Qt4RunConfiguration:/home/abaiao/repo/treinamento/parte_1/teste2.pro</value>
     <value type="bool" key="QmakeProjectManager.QmakeRunConfiguration.UseLibrarySearchPath">true</value>
-    <value type="QString" key="Qt4ProjectManager.Qt4RunConfiguration.CommandLineArguments">lovelace.aker.com.br/temp/eicar.com.txt teste.out over</value>
+    <value type="QString" key="Qt4ProjectManager.Qt4RunConfiguration.CommandLineArguments">lovelace.aker.com.br/ISOs/ubuntu-12.04-desktop-amd64.iso centOS.iso over</value>
     <value type="QString" key="Qt4ProjectManager.Qt4RunConfiguration.ProFile">teste2.pro</value>
     <value type="bool" key="Qt4ProjectManager.Qt4RunConfiguration.UseDyldImageSuffix">false</value>
-    <value type="QString" key="Qt4ProjectManager.Qt4RunConfiguration.UserWorkingDirectory"></value>
+    <value type="QString" key="Qt4ProjectManager.Qt4RunConfiguration.UserWorkingDirectory">/home/abaiao/repo/treinamento/build</value>
     <value type="QString" key="Qt4ProjectManager.Qt4RunConfiguration.UserWorkingDirectory.default">/home/abaiao/build-teste2-Desktop-Debug</value>
     <value type="uint" key="RunConfiguration.QmlDebugServerPort">3768</value>
     <value type="bool" key="RunConfiguration.UseCppDebugger">false</value>
