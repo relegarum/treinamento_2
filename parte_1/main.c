@@ -1,5 +1,11 @@
 /* \file main.c
- * \brief Treinamento
+ *
+ * \brief Treinamento Este programa deverá ser operado por linha de comando e
+ * compilado sobre Linux. Ele deverá receber como parâmetro uma URI completa e
+ * um nome de arquivo, e em seguida conectar-se ao servidor, recuperar a
+ * página e salvá-la no arquivo informado.
+ * Não é permitido usar libfetch ou outras bibliotecas equivalentes.
+ *
  *
  * "$Id: $"
 */
@@ -19,7 +25,37 @@
 
 #include "http_utils.h"
 
+int handle_file(char* fileName, uint8_t overwrite, FILE **output)
+{
+  {
+    struct stat buffer;
+    int result = stat(fileName, &buffer);
+    if (result != 0)
+    {
+      *output = fopen(fileName, "w");
+    }
+    else
+    {
+      if (overwrite == 1)
+      {
+        *output = fopen(fileName, "w");
+      }
+      else
+      {
+        printf("File already exist and the overwrite flags wasn't passed\n");
+        return -1;
+      }
+    }
+  }
 
+  if (*output == NULL)
+  {
+    perror("Coudn't open file");
+    return -1;
+  }
+
+  return 0;
+}
 
 int handle_arguments(int argc,
                      char **argv,
@@ -44,6 +80,7 @@ int handle_arguments(int argc,
   char hostname[50];
   get_resource(argv[1], hostname, resource_required);
 
+  /*Get */
   int32_t status = getaddrinfo(hostname, "80", &hints, &res);
   if (status != 0)
   {
@@ -77,34 +114,18 @@ int handle_arguments(int argc,
   }*/
 
   *server_info = res;
-  char* fileName = argv[2];
+
+  /* Verify the overwrite flag existence */
+  const char* overwrite_flag = "over";
+  char* file_name = argv[2];
+  uint8_t ovewrite = 0;
   if ((argc == 4) &&
-     (strncmp( argv[3], "over", 4) == 0))
+     (strncmp( argv[3], overwrite_flag, strlen(overwrite_flag)) == 0))
   {
-    *output = fopen(fileName, "w");
-  }
-  else
-  {
-    struct stat buffer;
-    int result = stat(fileName, &buffer);
-    if (result != 0)
-    {
-      printf( "File doesn't exist\n" );
-      exit( 1 );
-    }
-    else
-    {
-      *output = fopen(fileName, "w");
-    }
+    ovewrite = 1;
   }
 
-  if (*output == NULL)
-  {
-    perror( "Coudn't open file" );
-    exit(1);
-  }
-
-  return 0;
+  return handle_file(file_name, ovewrite, output);
 }
 
 int main(int argc, char **argv)
@@ -140,6 +161,7 @@ int main(int argc, char **argv)
   const int32_t transmission_rate = 512;
   if (download_file(socket_descriptor, resource_required, transmission_rate, output_file ) != 0)
   {
+    close( socket_descriptor );
     freeaddrinfo(server_info);
     fclose(output_file);
     return -1;
@@ -148,7 +170,6 @@ int main(int argc, char **argv)
   close( socket_descriptor );
   freeaddrinfo(server_info);
   fclose(output_file);
-
   return 0;
 }
 

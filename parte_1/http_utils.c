@@ -69,6 +69,7 @@ uint32_t handle_response_status(char *http_response)
   }
 }
 
+/**/
 int32_t get_header(int socket_descriptor, char *resource_required, int32_t *header_length, int32_t *content_length)
 {
   int resource_required_length = strlen(resource_required);
@@ -102,7 +103,17 @@ int32_t get_header(int socket_descriptor, char *resource_required, int32_t *head
 
 void get_resource(char *uri, char *hostname, char *resource)
 {
-  sscanf(uri, "%[^/]%s", hostname, resource);
+  const char *protocol_suffix = "http://";
+  char *pointer = strstr(uri, protocol_suffix);
+  if( pointer != NULL )
+  {
+    pointer += strlen( protocol_suffix );
+    sscanf(pointer, "%[^/]%s", hostname, resource);
+  }
+  else
+  {
+    sscanf(uri, "%[^/]%s", hostname, resource);
+  }
 }
 
 int32_t download_file(int socket_descriptor, char *resource_required, int32_t transmission_rate, FILE *output_file)

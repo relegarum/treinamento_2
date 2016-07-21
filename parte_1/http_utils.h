@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
+/* Possible response status from HTTP */
 enum HTTP_STATUS
 {
   Ok               = 200,
