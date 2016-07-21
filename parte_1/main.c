@@ -1,160 +1,157 @@
-/*$Id: $*/
-
-/*Standard includes*/
+/* \file main.c
+ * \brief Treinamento
+ *
+ * "$Id: $"
+*/
 #include <stdio.h>
-#include <stdint.h>
 #include <string.h>
+#include <unistd.h>
 #include <stdlib.h>
+#include <stdint.h>
 
-/*Network includes */
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/socket.h>
+#include <netdb.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
-#include <netdb.h>
+#include <regex.h>
 
-int handle_arguments( int32_t argc,
-                      char **argv,
-                      char *uri,
-                      char *output_file,
-                      int8_t* overwrite )
+#include "http_utils.h"
+
+
+
+int handle_arguments(int argc,
+                     char **argv,
+                     struct addrinfo **server_info,
+                     char *resource_required,
+                     FILE **output)
 {
-  const int32_t number_of_arguments = 3;
-  if ( argc < number_of_arguments )
+  const int32_t number_of_elements = 3;
+  if (argc < number_of_elements)
   {
-    printf( "Wrong number of arguments\n Format: URI outputFile\n" );
+    printf("wrong number of arguments");
+    exit(1);
+  }
+
+  struct addrinfo hints, *res;
+  char ipstr[ INET6_ADDRSTRLEN ];
+
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family   = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+
+  char hostname[ 50 ];
+  get_resource( argv[ 1 ], hostname, resource_required );
+
+  int32_t status = getaddrinfo( hostname, "80", &hints, &res );
+  if ( status != 0 )
+  {
+    printf( "getaddrinfo: %s\n", gai_strerror( status ) );
     exit( 1 );
   }
 
-  strncpy( uri,         argv[ 1 ], strlen( argv[ 1 ] ) + 1 );
-  strncpy( output_file, argv[ 2 ], strlen( argv[ 2 ] ) + 1 );
+  printf( "IP adresses for %s :", hostname );
 
-  if ( argc == 4 )
+  struct addrinfo *p;
+  for ( p = res; p != NULL; p = p->ai_next )
   {
-    if ( strncmp( argv[ 3 ], "over", 4 ) == 0 )
+    void *addr;
+    char ipver[ 50 ];
+
+    if ( p->ai_family == AF_INET )
     {
-      *overwrite = 1;
+      struct sockaddr_in *ipv4 = (struct sockaddr_in *)p->ai_addr;
+      addr = &( ipv4->sin_addr );
+      strncpy( ipver, "IPv4", 5 );
+    }
+    else
+    {
+      struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)p->ai_addr;
+      addr = &( ipv6->sin6_addr );
+      strncpy( ipver, "IPv6", 5 );
+    }
+
+    inet_ntop( p->ai_family, addr, ipstr, sizeof( ipstr ) );
+    printf( " %s: %s\n", ipver, ipstr );
+  }
+
+  *server_info = res;
+  if ( ( argc == 4 ) &&
+       ( strncmp( argv[ 3 ], "over", 4 ) == 0 ) )
+  {
+    *output = fopen( argv[ 1 ], "w" );
+  }
+  else
+  {
+    struct stat buffer;
+    int result = stat( argv[ 1 ], &buffer );
+    if( result != 0 )
+    {
+      printf( "File doesn't exist\n" );
+      exit( 1 );
+    }
+    else
+    {
+      *output = fopen( argv[ 1 ], "w" );
     }
   }
 
-  return 0;
-}
-
-int connect_server( int32_t socket_file_descriptor,
-                    struct sockaddr_in dest_address )
-{
-  int32_t success = connect( socket_file_descriptor, ( struct sockaddr *) &dest_address, sizeof( struct sockaddr ) );
-  if( success == -1 )
+  /*if ( *output == NULL )
   {
-    perror("connect");
-    close( socket_file_descriptor );
-    exit(1);
-  }
+    printf( "Coudn't open file: %s", argv[ 1 ] );
+    exit( 1 );
+  }*/
 
   return 0;
 }
 
-
-int main( int32_t argc, char **argv )
+int main( int argc, char **argv )
 {
-  /*Arguments handle*/
-  const int32_t max_uri_size         = 30;
-  const int32_t max_output_file_size = 30;
-  const int32_t backlog              = 10;
+  struct addrinfo *server_info = NULL;
+  FILE            *output_file  = NULL;
+  char		         resource_required[ 50 ];
 
-  char    uri[ max_uri_size ];
-  char    output_file[ max_output_file_size ];
-  int8_t overwrite = 0;
-
-  handle_arguments( argc, argv, uri, output_file, &overwrite );
-  /*End of arguments handle*/
-
-  /* Socket Setup */
-  struct hostent *dest = gethostbyname( uri );
-  if ( dest == NULL )
+  if ( handle_arguments( argc, argv, &server_info, resource_required, &output_file ) != 0 )
   {
-    herror("Error in get host by name\n");
-    exit(1);
+    printf( "Couldn't handle arguments\n" );
+    return 1;
   }
 
-  int32_t socket_file_descriptor = socket( PF_INET, SOCK_STREAM, 0 );
-  if ( socket_file_descriptor == -1 )
+  int socket_descriptor = socket( server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol );
+  if ( socket_descriptor == -1 )
   {
     perror( "socket" );
     exit( 1 );
   }
 
-  struct sockaddr_in host_address;
-  host_address.sin_family       = AF_INET;
-  host_address.sin_port         = 0;
-  host_address .sin_addr.s_addr = INADDR_ANY;
-  memset( &( host_address.sin_zero ), '\0',  8 );
+  printf( "Trying to Connect.." );
 
-  if( bind( socket_file_descriptor, ( struct sockaddr * )&host_address, sizeof( struct sockaddr ) ) != 0 )
+  int status = connect( socket_descriptor, server_info->ai_addr, server_info->ai_addrlen );
+  if ( status == -1 )
   {
-     herror( "Error in bind," );
-     close( socket_file_descriptor );
-     return 1;
-  }
-
-  if ( listen( socket_file_descriptor, 10 ) == -1 )
-  {
-    perror( "listen" );
-    return 1;
-  }
-
-  struct sockaddr_in dest_address;
-  dest_address.sin_family       = AF_INET;
-  dest_address.sin_port         = htons( 80 );
-  dest_address .sin_addr        = *( (struct in_addr *)dest->h_addr_list[ 0 ] );
-  memset( &( host_address.sin_zero ), '\0',  8 );
-
-  if ( connect_server( socket_file_descriptor, dest_address ) != 0 )
-  {
-    return 1;
-  }
-
-  printf( "Connecting on Ip Address: %s\n", inet_ntoa( *( ( struct in_addr * ) dest->h_addr_list[ 0 ] ) ) );
-
-
-  // Sending
-  char* final_request[ 100 ];
-  char* path_to_file = "index.html";
-  sprintf( final_request, "GET %s HTTP/1.0", path_to_file );
-  int32_t len = strlen( final_request );
-  int32_t bytes_sent = send( socket_file_descriptor, final_request, len, 0 );
-  if ( bytes_sent != len )
-  {
-    return 1;
-  }
-
-  int accepted_socket_fd = accept( socket_file_descriptor, ( struct sockaddr* )&dest_address, sizeof( struct sockaddr ) );
-  if ( accepted_socket_fd == -1 )
-  {
-    perror( "accept" );
-    return 1;
-  }
-
-  // Receiving
-  const uint8_t max_data_size = 256;
-  char *buffer[ max_data_size ];
-  int32_t read_bytes = 0;
-  if ( read_bytes = recv( socket_file_descriptor, buffer, max_data_size - 1, 0 ) == -1 )
-  {
-    perror( "recv" );
+    perror( "connect" );
     exit( 1 );
   }
 
-  buffer[ read_bytes ] = '\0';
-  printf( "Received: %s\n", buffer );
+  printf( "Connected!\n" );
 
+  int32_t header_length  = 80;
+  int32_t content_length = 8000;
+  int32_t buffer_length = header_length + content_length;
 
-  fd_set readfds;
-  FD_ZERO( &readfds );
+  char *buffer = malloc(sizeof(char)*(buffer_length));
+  if( download_file(socket_descriptor, resource_required, buffer_length, buffer) != 0 )
+  {
+    free(buffer);
+    freeaddrinfo(server_info);
+    fclose(output_file);
+    return -1;
+  }
 
-
-
-  /* End of socket setup*/
-
-  close( socket_file_descriptor );
+  free(buffer);
+  freeaddrinfo(server_info);
+  fclose(output_file);
   return 0;
 }
+
