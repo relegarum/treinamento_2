@@ -87,8 +87,8 @@ int main(int argc, char *argv[])
   const int32_t number_of_connections     = 100;
   struct addrinfo         hints;
   struct sockaddr_storage client_address;
-  socklen_t               sin_size;
-  char client_address_string[INET6_ADDRSTRLEN];
+  socklen_t               addrlen;
+  char                    remote_ip[INET6_ADDRSTRLEN];
 
 
   memset(&hints, 0, sizeof(hints));
@@ -154,7 +154,84 @@ int main(int argc, char *argv[])
 
   printf("server: waiting for connections...\n");
 
-  while(1)
+  int    greatest_file_desc;
+  fd_set master;
+  fd_set read_fds;
+  fd_set write_fds;
+
+  FD_ZERO(&master);
+  FD_ZERO(&read_fds);
+  FD_ZERO(&write_fds);
+  FD_SET(listening_sock_description, &master);
+  greatest_file_desc = listening_sock_description;
+
+  while (1)
+  {
+    read_fds = master;
+    if (select(greatest_file_desc + 1, &read_fds, &write_fds, NULL, NULL) == -1)
+    {
+      perror("select error");
+      success = 4;
+      goto exit;
+    }
+    int32_t index = 0;
+    for (;index <= greatest_file_desc; ++index)
+    {
+      if (FD_ISSET(index, &read_fds))
+      {
+        if (index == listening_sock_description)
+        {
+          addrlen = sizeof(client_address);
+          new_socket_description = accept(listening_sock_description,
+                                          (struct sockaddr *)&client_address,
+                                          &addrlen);
+          if (new_socket_description == -1)
+          {
+            perror("Accept");
+          }
+          else
+          {
+            FD_SET(new_socket_description, &master);
+            if (new_socket_description > greatest_file_desc)
+            {
+              greatest_file_desc = new_socket_description;
+              inet_ntop(client_address.ss_family,
+                        get_in_addr((struct sockaddr *)&client_address),
+                        remote_ip,
+                        sizeof(remote_ip));
+              printf("Connection from %s -> socket_num = %d\n", remote_ip, new_socket_description);
+            }
+          }
+        }
+        else
+        {
+          // Read data from client (( use http_utils.c ))
+          char buffer[BUFSIZ];
+          int32_t bytes_received = recv(index, buffer, sizeof(buffer), 0);
+          if (bytes_received <= 0)
+          {
+            if (bytes_received == 0)
+            {
+              printf("Socket = %d closed\n", index);
+            }
+            else
+            {
+              perror("recv");
+              success = -1;
+              goto exit;
+            }
+            close(index);
+            FD_CLR(index, &master);
+
+            buffer[bytes_received] = '\0';
+            printf("%s", buffer);
+          }
+        }
+      }
+    }
+  }
+
+  /*while(1)
   {
     sin_size = sizeof(client_address);
     new_socket_description = accept(listening_sock_description,
@@ -171,9 +248,9 @@ int main(int argc, char *argv[])
               get_in_addr((struct sockaddr *)&client_address),
               client_address_string,
               sizeof(client_address_string));
-    printf("server: go connection from %s\n", client_address_string);
+    printf("server: go connection from %s\n", remote_ip);
     close(new_socket_description);
-  }
+  }*/
 
   success = 0;
 exit:
