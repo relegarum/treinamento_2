@@ -203,13 +203,13 @@ int32_t handle_header(int socket_descriptor, int32_t *header_length, int32_t *co
   const int32_t header_slice_size = 2048;
   char header_slice[ header_slice_size ];
   bytes_received = recv(socket_descriptor, header_slice, header_slice_size, MSG_PEEK );
-  if( bytes_received == 0 )
+  if (bytes_received == 0)
   {
     printf( "Nothing was received as a Header!" );
     return -1;
   }
 
-  if( handle_response_status( header_slice ) != 0 )
+  if (handle_response_status(header_slice) != 0)
   {
     return -1;
   }
