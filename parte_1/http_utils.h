@@ -36,7 +36,7 @@ int32_t handle_header(int socket_descriptor, int32_t *header_length , int32_t *c
 
 void get_resource(char *uri, char *hostname, char *resource);
 
-int32_t download_file(int socket_descriptor, char *resource_required, int32_t transmission_rate, FILE* output_file);
+int32_t download_file(int socket_descriptor, char *hostname, char *resource_required, int32_t transmission_rate, FILE* output_file);
 
 int32_t extract_content(char *http_response, char* content,int32_t content_length);
 

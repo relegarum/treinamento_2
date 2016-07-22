@@ -5,6 +5,7 @@
  * um nome de arquivo, e em seguida conectar-se ao servidor, recuperar a
  * página e salvá-la no arquivo informado.
  * Não é permitido usar libfetch ou outras bibliotecas equivalentes.
+ * Teste string: (echo -e "HTTP/1.0 200 OK\r\nConnection: close\r\nContent-Length: `wc -c /bin/bash | cut -d ' ' -f 1`\r\n\r\n";cat /bin/bash) | sudo nc -l 80 > /tmp/output
  *
  *
  * "$Id: $"
@@ -61,6 +62,7 @@ int handle_arguments(int argc,
                      char **argv,
                      struct addrinfo **server_info,
                      char *resource_required,
+                     char *hostname,
                      FILE **output)
 {
   const int32_t  number_of_elements   = 3;
@@ -81,8 +83,6 @@ int handle_arguments(int argc,
   memset(&hints, 0, sizeof(hints));
   hints.ai_family   = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
-
-  char hostname[50];
   get_resource(argv[index_of_uri], hostname, resource_required);
 
   /*Get addrinfo*/
@@ -96,7 +96,7 @@ int handle_arguments(int argc,
   *server_info = res;
 
   /* Verify the overwrite flag existence */
-  const char* overwrite_flag = "over";
+  const char* overwrite_flag = "-o";
   char* file_name = argv[index_of_output_file];
   uint8_t ovewrite = 0;
   if ((argc == number_of_elements_with_flag) &&
@@ -112,11 +112,12 @@ int main(int argc, char **argv)
 {
   struct addrinfo *server_info = NULL;
   FILE            *output_file = NULL;
-  char		         resource_required[ 100 ];
+  char		       resource_required[ 100 ];
+  char		       hostname[ 100 ];
 
   int32_t ret =  0;
   int socket_descriptor = -1;
-  if (handle_arguments(argc, argv, &server_info, resource_required, &output_file) != 0)
+  if (handle_arguments(argc, argv, &server_info, resource_required, hostname, &output_file) != 0)
   {
     printf( "Couldn't handle arguments\n" );
     ret = -1;
@@ -144,7 +145,7 @@ int main(int argc, char **argv)
   printf("Connected!\n");
 
   const int32_t transmission_rate = 512;
-  if (download_file(socket_descriptor, resource_required, transmission_rate, output_file ) != 0)
+  if (download_file(socket_descriptor, hostname, resource_required, transmission_rate, output_file ) != 0)
   {
     ret = -1;
     goto exit;

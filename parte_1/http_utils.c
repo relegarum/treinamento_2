@@ -75,7 +75,7 @@ int32_t get_header(int socket_descriptor, char *resource_required, int32_t *head
   int resource_required_length = strlen(resource_required);
 
   char request_msg[ 80 ];
-  sprintf(request_msg, "GET %s HTTP/1.0\r\n\r\n", (resource_required_length != 0) ? resource_required : "/index.html");
+  sprintf(request_msg, "GET %s HTTP/1.0\r\n\r\n", (resource_required_length != 0) ? resource_required : "/");
   int32_t request_len = strlen(request_msg);
   int32_t bytes_sent = send(socket_descriptor, request_msg, request_len, 0);
   if (bytes_sent != request_len)
@@ -116,23 +116,36 @@ void get_resource(char *uri, char *hostname, char *resource)
   }
 }
 
-int32_t download_file(int socket_descriptor, char *resource_required, int32_t transmission_rate, FILE *output_file)
+int32_t download_file(int socket_descriptor, char *hostname, char *resource_required, int32_t transmission_rate, FILE *output_file)
 {
-  int resource_required_length = strlen(resource_required);
+  int32_t resource_required_length = strlen(resource_required);
+  int32_t hostname_length          = strlen(hostname);
 
-  char *request_mask = "GET %s HTTP/1.0\r\n\r\n";
-  char *request_msg = malloc(sizeof(char)*(strlen(request_mask) + resource_required_length + 1));
-  sprintf(request_msg, request_mask, (resource_required_length != 0) ? resource_required : "/index.html");
+  char *request_mask = "GET %s HTTP/1.0\r\n"
+                       "Host: %s\r\n"
+                       "\r\n";
 
-  printf( "%s\n", request_msg );
+  char *request_msg = malloc(sizeof(char)*(strlen(request_mask) + resource_required_length + hostname_length + 1));
+  sprintf(request_msg,
+          request_mask,
+          (resource_required_length != 0) ? resource_required : "/",
+          hostname );
 
   int32_t request_len = strlen(request_msg);
-  int32_t bytes_sent = send(socket_descriptor, request_msg, request_len, 0);
-  if (bytes_sent != request_len)
+  int32_t total_bytes_sent = 0;
+  int32_t bytes_sent = 0;
+  do
   {
-    printf("Coudn't send entire request\n");
-    return -1;
+    int32_t attempt_size = request_len - total_bytes_sent;
+    bytes_sent = send(socket_descriptor, &request_msg[total_bytes_sent], attempt_size, 0);
+    if (bytes_sent == -1)
+    {
+        perror( "Error in send" );
+        return -1;
+    }
+    total_bytes_sent += bytes_sent;
   }
+  while (total_bytes_sent != request_len);
   free(request_msg);
 
   int32_t header_length  = 0;
@@ -152,19 +165,23 @@ int32_t download_file(int socket_descriptor, char *resource_required, int32_t tr
   }
   free( header );
 
+  int32_t total_byte_received = 0;
   bytes_received = 0;
   char *chunk = malloc(sizeof(char)*transmission_rate);
-  while ((bytes_received = recv(socket_descriptor, chunk, transmission_rate, 0)) != 0)
+  do
   {
+    bytes_received = recv(socket_descriptor, chunk, transmission_rate, 0);
+    total_byte_received += bytes_received;
     int write_bytes = transmission_rate;
-    if (bytes_received < transmission_rate)
+    if (total_byte_received > content_length)
     {
-      chunk[ bytes_received ] = '\0';
-      write_bytes = bytes_received;
+      int32_t exceed = total_byte_received - content_length;
+      write_bytes = bytes_received - exceed;
+      chunk[ write_bytes ] = '\0';
     }
 
     fwrite( chunk, sizeof(char), write_bytes, output_file );
-  }
+  }while((total_byte_received < content_length) && (bytes_received != 0));
 
   free(chunk);
 
