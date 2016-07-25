@@ -2,6 +2,8 @@
 #define HTTP_UTILS_H
 #include <stdint.h>
 #include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 /* Possible response status from HTTP */
 enum HTTP_STATUS
@@ -23,6 +25,20 @@ enum HTTP_STATUS
   ServiceUnavaible = 503
 };
 
+
+typedef struct ConnectionStruct
+{
+  int32_t socket_description;
+  char    *request;
+  int8_t  active;
+  FILE    *resource_file;
+  char    *header;
+  int32_t wroteData;
+  int32_t response_size;
+} Connection;
+
+void *get_in_addr(struct sockaddr *sa);
+
 uint32_t get_response_size(char *first_chunk);
 
 uint32_t handle_response_status(char *http_response);
@@ -39,5 +55,13 @@ void get_resource(char *uri, char *hostname, char *resource);
 int32_t download_file(int socket_descriptor, char *hostname, char *resource_required, int32_t transmission_rate, FILE* output_file);
 
 int32_t extract_content(char *http_response, char* content,int32_t content_length);
+
+int32_t receive_request(int32_t socket_descriptor, Connection *item, const int32_t transmission_rate);
+
+void handle_request(Connection *item, char *path);
+
+int32_t send_response(int32_t socket_descriptor, fd_set *master, Connection *item, int32_t transmission_rate);
+
+int verify_connection(int32_t listening_socket, fd_set *read_fds, fd_set *master, int *greatest_fds );
 
 #endif // HTTP_UTILS_H
