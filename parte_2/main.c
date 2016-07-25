@@ -30,7 +30,10 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 
+#include "../utils/connection_manager.h"
+#include "../utils/connection_item.h"
 #include "../utils/http_utils.h"
+
 
 int32_t handle_arguments(int argc, char **argv, char **port, char **path)
 {
@@ -59,7 +62,26 @@ int32_t handle_arguments(int argc, char **argv, char **port, char **path)
   return 0;
 }
 
-int main(int argc, char *argv[])
+void teste_connection_manager()
+{
+  ConnectionManager manager;
+  init_list(&manager);
+  Connection *item1 = create_connection_item(1);
+  Connection *item2 = create_connection_item(2);
+  Connection *item3 = create_connection_item(3);
+  Connection *item10 = create_connection_item(10);
+
+  add_connection_in_list(&manager, item1);
+  add_connection_in_list(&manager, item2);
+  add_connection_in_list(&manager, item3);
+  add_connection_in_list(&manager, item10);
+
+  remove_connection_in_list(&manager, item1);
+
+  free_list(&manager);
+}
+
+int main(int argc, char **argv)
 {
   struct addrinfo *servinfo          = NULL;
   struct addrinfo *serverinfo_ptr    = NULL;
@@ -68,8 +90,10 @@ int main(int argc, char *argv[])
   char *port;
   char *path;
 
+  ConnectionManager manager = create_manager();
+
   int success = 0;
-  if (handle_arguments( argc, argv, &port, &path) == -1)
+  if (handle_arguments(argc, argv, &port, &path) == -1)
   {
     success = 1;
     goto exit;
@@ -181,16 +205,21 @@ int main(int argc, char *argv[])
         }
         else
         {
-          Connection item;
-          item.socket_description = index;
-          if (receive_request(index, &item, transmission_rate) == -1)
+          Connection* item = create_connection_item((index));
+
+          add_connection_in_list( &manager, item);
+
+          if (receive_request(item, transmission_rate) == -1)
           {
             success = -1;
             goto exit;
           }
 
-          handle_request(&item, path);
-          send_response(index, &master, &item, transmission_rate);
+          handle_request(item, path);
+          send_response(item, &master, transmission_rate);
+
+          remove_connection_in_list(&manager,item);
+          //free_connection_item(item);
         }
       }
     }
@@ -207,6 +236,8 @@ exit:
   {
     close(listening_sock_description);
   }
+
+  free_list(&manager);
 
   return success;
 }

@@ -1,4 +1,5 @@
 #include "http_utils.h"
+
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -21,6 +22,9 @@ static const char* HeaderInternalError = "HTTP/1.0 500 Internal Server Error\r\n
 static const char* HeaderUnauthorized  = "HTTP/1.0 401 Unauthorized\r\n";
 static const char* HeaderWrongVerison  = "HTTP/1.0 505 HTTP Version Not Supported\r\n";
 static const char* ContentLenghtMask   = "Content-Length=%d\r\n";
+static const char* ContentTypeStr      = "Content-Type=application/octet-stream\r\n";
+static const char* ServerStr           = "Server=Aker\r\n";
+static const char* IndexStr            = "/index.html";
 
 void *get_in_addr(struct sockaddr *sa)
 {
@@ -255,13 +259,14 @@ int32_t handle_header(int socket_descriptor, int32_t *header_length, int32_t *co
 }
 
 
-int32_t receive_request(int32_t socket_descriptor, Connection *item, const int32_t transmission_rate)
+int32_t receive_request(Connection *item, const int32_t transmission_rate)
 {
   // Read data from client (( use http_utils.c ))%
   char buffer[8000];
-  char *carriage = buffer;
+  char *carriage               = buffer;
   int32_t total_bytes_received = 0;
-  int32_t bytes_received = 0;
+  int32_t bytes_received       = 0;
+  int32_t socket_descriptor    = item->socket_description;
   while(1)
   {
     bytes_received = recv(socket_descriptor, carriage, sizeof(buffer), 0);
@@ -292,18 +297,20 @@ int32_t receive_request(int32_t socket_descriptor, Connection *item, const int32
   memset( item->request, '\0', total_bytes_received);
   strncpy(item->request, buffer, total_bytes_received + 1);
   item->response_size = total_bytes_received;
-  item->active = 1;
+  item->state = Sending;
   printf("Incomming request: \n%s\n", item->request);
 
   return 0;
 }
 
-int32_t send_response(int32_t socket_descriptor, fd_set *master_ptr, Connection *item, int32_t transmission_rate)
+int32_t send_response(Connection *item, fd_set *master_ptr, int32_t transmission_rate)
 {
-  int32_t total_bytes_sent = 0;
-  int32_t bytes_sent = 0;
-  int32_t header_size = strlen(item->header);
-  char *header = item->header;
+  int32_t total_bytes_sent  = 0;
+  int32_t bytes_sent        = 0;
+  int32_t header_size       = strlen(item->header);
+  char *header              = item->header;
+  int32_t socket_descriptor = item->socket_description;
+
   do
   {
     int32_t attempt_size = header_size - total_bytes_sent;
@@ -314,66 +321,42 @@ int32_t send_response(int32_t socket_descriptor, fd_set *master_ptr, Connection 
         return -1;
     }
     total_bytes_sent += bytes_sent;
+
   }
   while (total_bytes_sent != header_size);
-  free(item->header); // check this ####
+
+
+  if (item->resource_file == NULL)
+  {
+    return -1;
+  }
 
   total_bytes_sent = 0;
   bytes_sent = 0;
-  char resource[8000];
+  char resource[transmission_rate + 20];
   int32_t total_bytes_read = 0;
   int32_t bytes_read = 0;
   do
   {
     bytes_read = fread(resource, sizeof(char), transmission_rate, item->resource_file);
+
     if ((bytes_read != -1) &&
         (bytes_read != 0 ))
     {
-      do
+      if (bytes_read < transmission_rate)
       {
-        if (bytes_read < transmission_rate)
-        {
-          transmission_rate = bytes_read;
-        }
-        //int32_t attempt_size = transmission_rate - total_bytes_sent;
-        bytes_sent = send(socket_descriptor, &resource[total_bytes_sent], transmission_rate, 0);
-        if (bytes_sent == -1)
-        {
-          perror( "Error in send" );
-          return -1;
-        }
-        total_bytes_sent += bytes_sent;
+        transmission_rate = bytes_read;
       }
-      while (total_bytes_sent != bytes_read);
+      bytes_sent = send(socket_descriptor, resource, transmission_rate, 0);
+      if (bytes_sent == -1)
+      {
+        perror( "Error in send" );
+        return -1;
+      }
+      total_bytes_sent += bytes_sent;
     }
   }while (bytes_read != 0 || total_bytes_read == item->response_size);
   //free(item->header); // check this ####
-
-  /*char *request_mask = "%s%s";
-  char *request_msg = malloc(sizeof(char)*(request_size + 1200));
-  sprintf(request_msg,
-          request_mask,
-          item->header,
-          resource_required);
-
-  printf("\nSend header:\n%s\n", request_msg);
-
-  int32_t request_len = strlen(request_msg);
-  int32_t total_bytes_sent = 0;
-  int32_t bytes_sent = 0;
-  do
-  {
-    int32_t attempt_size = request_len - total_bytes_sent;
-    bytes_sent = send(socket_descriptor, &request_msg[total_bytes_sent], attempt_size, 0);
-    if (bytes_sent == -1)
-    {
-        perror( "Error in send" );
-        return -1;
-    }
-    total_bytes_sent += bytes_sent;
-  }
-  while (total_bytes_sent != request_len);
-  free(request_msg);*/
 
   printf("Socket = %d closed\n\n", socket_descriptor);
   close(socket_descriptor);
@@ -385,7 +368,6 @@ int32_t send_response(int32_t socket_descriptor, fd_set *master_ptr, Connection 
 
 void handle_request(Connection *item, char *path)
 {
-  char *index_str = "/index.html";
   char operation[OPERATION_SIZE];
   char resource[MAX_RESOURCE_SIZE];
   char protocol[PROTOCOL_SIZE];
@@ -424,15 +406,15 @@ void handle_request(Connection *item, char *path)
   if( strncmp(resource, "/", resource_size) == 0 ||
       strncmp(resource, ".", resource_size) == 0 )
   {
-    strncpy(resource, index_str, strlen(index_str));
+    strncpy(resource, IndexStr, strlen(IndexStr));
   }
 
-  const int32_t path_size     = strlen(path);
   resource_size = strlen(resource);
-  char  *file_name = malloc(sizeof(char) * (path_size+resource_size+1));
-  sprintf( file_name, "%s%s", path, resource);
-  FILE *teste = fopen(file_name, "rb");
-  item->resource_file = teste;
+  const int32_t path_size      = strlen(path);
+  const int32_t file_name_size = path_size + resource_size + 1;
+  char  *file_name = malloc(sizeof(char) * (file_name_size));
+  snprintf(file_name, file_name_size, "%s%s", path, resource);
+  item->resource_file = fopen(file_name, "rb");;
   if (item->resource_file == NULL)
   {
     if (errno == EACCES)
@@ -458,14 +440,30 @@ void handle_request(Connection *item, char *path)
     item->header = strdup(HeaderInternalError);
     return;
   }
+  free(file_name);
 
   int32_t contentLenghtMaskSize = strlen(ContentLenghtMask);
-  const int32_t maxLenghtStrSize = 12;
-  item->header     = malloc(sizeof(char)*(strlen(HeaderOk) + contentLenghtMaskSize + maxLenghtStrSize));
-  char *headerMask = malloc(sizeof(char)*(strlen(HeaderOk) + contentLenghtMaskSize + 1));
-  sprintf(headerMask, "%s%s", HeaderOk, ContentLenghtMask );
-  sprintf(item->header, headerMask, buffer.st_size);
-  item->response_size = buffer.st_size;
+  int32_t headerOkSize          = strlen(HeaderOk);
+  int32_t serverStrSize         = strlen(ServerStr);
+  int32_t contentTypeStrSize    = strlen(ContentTypeStr);
+  int32_t headerMaskSize        = headerOkSize +
+                                  serverStrSize +
+                                  contentLenghtMaskSize +
+                                  contentTypeStrSize +
+                                  3; /* \r\n\0 */
+
+  const int32_t maxLenghtStrSize = 50;
+  const int32_t header_size      = headerMaskSize + maxLenghtStrSize + 3;
+  item->header     = malloc(sizeof(char) * (header_size));
+  char *headerMask = malloc(sizeof(char) * (headerMaskSize)); // \r\n
+
+  int size = buffer.st_size;
+  snprintf(headerMask, headerMaskSize, "%s%s%s%s\r\n", HeaderOk, ContentLenghtMask, ServerStr, ContentTypeStr );
+  snprintf(item->header, header_size, headerMask, size);
+  item->response_size = size;
+
+  free(headerMask);
+
 
   return;
 }
