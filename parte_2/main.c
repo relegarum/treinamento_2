@@ -157,6 +157,7 @@ int main(int argc, char **argv)
     goto exit;
   }
   freeaddrinfo(servinfo);
+  serverinfo_ptr = NULL;
 
   if (listen(listening_sock_description, number_of_connections) == -1)
   {
@@ -181,7 +182,8 @@ int main(int argc, char **argv)
 
   while (1)
   {
-    read_fds = master;
+    read_fds  = master;
+    write_fds = master;
     if (select(greatest_file_desc + 1, &read_fds, &write_fds, NULL, NULL) == -1)
     {
       perror("select error");
@@ -189,13 +191,49 @@ int main(int argc, char **argv)
       goto exit;
     }
 
-    if (verify_connection( listening_sock_description, &read_fds, &master, &greatest_file_desc) == -1 )
+    if (verify_connection(&manager, listening_sock_description, &read_fds, &master, &greatest_file_desc) == -1)
     {
       continue;
     }
 
-    int32_t index = 0;
-    for (;index <= greatest_file_desc; ++index)
+    //int32_t index = 0;
+    Connection *ptr = manager.head;
+    while (ptr != NULL)
+    {
+      if (FD_ISSET(ptr->socket_descriptor, &read_fds))
+      {
+        if (receive_request(ptr, transmission_rate) == -1)
+        {
+          success = -1;
+          goto exit;
+        }
+
+        handle_request(ptr, path);
+      }
+
+      if (ptr->state == Sending &&
+          (FD_ISSET(ptr->socket_descriptor, &write_fds)) )
+      {
+        send_response(ptr, transmission_rate);
+      }
+
+      if (ptr->state == Sent)
+      {
+        Connection *next = ptr->next_ptr;
+        printf("Socket = %d closed\n\n", ptr->socket_descriptor);
+        close(ptr->socket_descriptor);
+        FD_CLR(ptr->socket_descriptor, &master);
+        remove_connection_in_list(&manager, ptr);
+        ptr = next;
+      }
+      else
+      {
+        ptr = ptr->next_ptr;
+      }
+    }
+
+
+    /*for (;index <= greatest_file_desc; ++index)
     {
       if (FD_ISSET(index, &read_fds))
       {
@@ -207,7 +245,7 @@ int main(int argc, char **argv)
         {
           Connection* item = create_connection_item((index));
 
-          add_connection_in_list( &manager, item);
+          add_connection_in_list(&manager, item);
 
           if (receive_request(item, transmission_rate) == -1)
           {
@@ -219,10 +257,9 @@ int main(int argc, char **argv)
           send_response(item, &master, transmission_rate);
 
           remove_connection_in_list(&manager,item);
-          //free_connection_item(item);
         }
       }
-    }
+    }*/
   }
 
   success = 0;
@@ -236,7 +273,6 @@ exit:
   {
     close(listening_sock_description);
   }
-
   free_list(&manager);
 
   return success;

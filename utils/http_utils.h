@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+#include "connection_manager.h"
 #include "connection_item.h"
 
 /* Possible response status from HTTP */
@@ -50,8 +51,8 @@ int32_t receive_request(Connection *item, const int32_t transmission_rate);
 
 void handle_request(Connection *item, char *path);
 
-int32_t send_response(Connection *item, fd_set *master, int32_t transmission_rate);
+int32_t send_response(Connection *itemW, int32_t transmission_rate);
 
-int verify_connection(int32_t listening_socket, fd_set *read_fds, fd_set *master, int *greatest_fds );
+int verify_connection(ConnectionManager *manager, int32_t listening_socket, fd_set *read_fds, fd_set *master, int *greatest_fds );
 
 #endif // HTTP_UTILS_H

@@ -25,6 +25,8 @@ static const char* ContentLenghtMask   = "Content-Length=%d\r\n";
 static const char* ContentTypeStr      = "Content-Type=application/octet-stream\r\n";
 static const char* ServerStr           = "Server=Aker\r\n";
 static const char* IndexStr            = "/index.html";
+static const char* HTTP10Str           = "HTTP/1.0";
+static const char* HTTP11Str           = "HTTP/1.1";
 
 void *get_in_addr(struct sockaddr *sa)
 {
@@ -237,7 +239,7 @@ int32_t handle_header(int socket_descriptor, int32_t *header_length, int32_t *co
 {
   int32_t bytes_received       = 0;
   const int32_t header_slice_size = 2048;
-  char header_slice[ header_slice_size ];
+  char header_slice[header_slice_size];
   bytes_received = recv(socket_descriptor, header_slice, header_slice_size, MSG_PEEK );
   if( bytes_received == 0 )
   {
@@ -261,12 +263,13 @@ int32_t handle_header(int socket_descriptor, int32_t *header_length, int32_t *co
 
 int32_t receive_request(Connection *item, const int32_t transmission_rate)
 {
+  item->state = Receiving;
   // Read data from client (( use http_utils.c ))%
   char buffer[8000];
   char *carriage               = buffer;
   int32_t total_bytes_received = 0;
   int32_t bytes_received       = 0;
-  int32_t socket_descriptor    = item->socket_description;
+  int32_t socket_descriptor    = item->socket_descriptor;
   while(1)
   {
     bytes_received = recv(socket_descriptor, carriage, sizeof(buffer), 0);
@@ -291,50 +294,54 @@ int32_t receive_request(Connection *item, const int32_t transmission_rate)
     total_bytes_received += bytes_received;
     carriage = buffer + total_bytes_received; /*&buffer[total_bytes_received]*/
   }
-  buffer[total_bytes_received] = '\0'; /* *carriage = '\*/
+  buffer[total_bytes_received] = '\0'; /* *carriage = '\0*/
 
   item->request = malloc(sizeof(char)*total_bytes_received);
   memset( item->request, '\0', total_bytes_received);
   strncpy(item->request, buffer, total_bytes_received + 1);
   item->response_size = total_bytes_received;
   item->state = Sending;
-  printf("Incomming request: \n%s\n", item->request);
+  //printf("Incomming request: \n%s\n", item->request);
 
   return 0;
 }
 
-int32_t send_response(Connection *item, fd_set *master_ptr, int32_t transmission_rate)
+int32_t send_response(Connection *item, int32_t transmission_rate)
 {
+  item->state = Sending;
+  int32_t socket_descriptor = item->socket_descriptor;
+
   int32_t total_bytes_sent  = 0;
   int32_t bytes_sent        = 0;
   int32_t header_size       = strlen(item->header);
   char *header              = item->header;
-  int32_t socket_descriptor = item->socket_description;
 
-  do
+  if(item->header_sent == 0)
   {
-    int32_t attempt_size = header_size - total_bytes_sent;
-    bytes_sent = send(socket_descriptor, &header[total_bytes_sent], attempt_size, 0);
-    if (bytes_sent == -1)
+    do
     {
+      int32_t attempt_size = header_size - total_bytes_sent;
+      bytes_sent = send(socket_descriptor, &header[total_bytes_sent], attempt_size, 0);
+      if (bytes_sent == -1)
+      {
         perror( "Error in send" );
         return -1;
+      }
+      total_bytes_sent += bytes_sent;
     }
-    total_bytes_sent += bytes_sent;
-
+    while (total_bytes_sent != header_size);
+    item->header_sent = 1;
   }
-  while (total_bytes_sent != header_size);
-
 
   if (item->resource_file == NULL)
   {
+    item->state = Sent;
     return -1;
   }
 
   total_bytes_sent = 0;
   bytes_sent = 0;
   char resource[transmission_rate + 20];
-  int32_t total_bytes_read = 0;
   int32_t bytes_read = 0;
   do
   {
@@ -350,24 +357,32 @@ int32_t send_response(Connection *item, fd_set *master_ptr, int32_t transmission
       bytes_sent = send(socket_descriptor, resource, transmission_rate, 0);
       if (bytes_sent == -1)
       {
+        if (errno == EAGAIN)
+        {
+          break;
+        }
         perror( "Error in send" );
         return -1;
       }
-      total_bytes_sent += bytes_sent;
+      item->wroteData += bytes_sent;
     }
-  }while (bytes_read != 0 || total_bytes_read == item->response_size);
+  }while (bytes_read != 0 && item->wroteData != item->response_size);
   //free(item->header); // check this ####
 
-  printf("Socket = %d closed\n\n", socket_descriptor);
-  close(socket_descriptor);
-  FD_CLR(socket_descriptor, master_ptr);
+  if(item->wroteData != item->response_size)
+  {
+    fseek(item->resource_file, -(bytes_read), SEEK_CUR);
+    return 0;
+  }
 
+  item->state = Sent;
   return 0;
 }
 
 
 void handle_request(Connection *item, char *path)
 {
+  item->state = Handling;
   char operation[OPERATION_SIZE];
   char resource[MAX_RESOURCE_SIZE];
   char protocol[PROTOCOL_SIZE];
@@ -384,22 +399,20 @@ void handle_request(Connection *item, char *path)
   if (sscanf(request, "%s %s %s\r\n", operation, resource, protocol) != 3)
   {
     item->header = strdup(HeaderBadRequest);
-    return;
+    goto exit_handle;
   }
 
-  printf("%s", operation);
-
-  if (strncmp(protocol, "HTTP/1.0", PROTOCOL_SIZE) != 0 &&
-     (strncmp(protocol, "HTTP/1.1", PROTOCOL_SIZE) != 0 ) )
+  if (strncmp(protocol, HTTP10Str, PROTOCOL_SIZE) != 0 &&
+     (strncmp(protocol, HTTP11Str, PROTOCOL_SIZE) != 0 ) )
   {
     item->header = strdup(HeaderWrongVerison);
-    return;
+    goto exit_handle;
   }
 
   if (strstr(resource, return_string) != NULL)
   {
     item->header = strdup(HeaderBadRequest);
-    return;
+    goto exit_handle;
   }
 
   int32_t resource_size = strlen(resource);
@@ -420,17 +433,17 @@ void handle_request(Connection *item, char *path)
     if (errno == EACCES)
     {
       item->header = strdup(HeaderUnauthorized);
-      return;
+      goto exit_handle;
     }
     else if ( errno == E2BIG)
     {
       item->header = strdup(HeaderBadRequest);
-      return;
+      goto exit_handle;
     }
     else
     {
       item->header = strdup(HeaderNotFound);
-      return;
+      goto exit_handle;
     }
   }
 
@@ -438,7 +451,7 @@ void handle_request(Connection *item, char *path)
   if (stat(file_name, &buffer) == -1 )
   {
     item->header = strdup(HeaderInternalError);
-    return;
+    goto exit_handle;
   }
   free(file_name);
 
@@ -458,18 +471,18 @@ void handle_request(Connection *item, char *path)
   char *headerMask = malloc(sizeof(char) * (headerMaskSize)); // \r\n
 
   int size = buffer.st_size;
-  snprintf(headerMask, headerMaskSize, "%s%s%s%s\r\n", HeaderOk, ContentLenghtMask, ServerStr, ContentTypeStr );
+  snprintf(headerMask, headerMaskSize, "%s%s%s%s\r\n", HeaderOk, ContentLenghtMask, ServerStr, ContentTypeStr);
   snprintf(item->header, header_size, headerMask, size);
   item->response_size = size;
-
   free(headerMask);
 
-
+exit_handle:
+  item->state = Sending;
   return;
 }
 
 
-int verify_connection( int32_t listening_socket, fd_set *read_fds, fd_set *master, int *greatest_fds)
+int verify_connection(ConnectionManager *manager, int32_t listening_socket, fd_set *read_fds, fd_set *master, int *greatest_fds)
 {
   struct sockaddr_storage client_address;
   char                    remote_ip[INET6_ADDRSTRLEN];
@@ -487,6 +500,8 @@ int verify_connection( int32_t listening_socket, fd_set *read_fds, fd_set *maste
     }
     else
     {
+      Connection* item = create_connection_item(new_socket_description);
+      add_connection_in_list(manager, item);
       FD_SET(new_socket_description, master);
       if (fcntl(new_socket_description, F_SETFL, fcntl(new_socket_description, F_GETFL) | O_NONBLOCK) < 0)
       {
@@ -506,6 +521,5 @@ int verify_connection( int32_t listening_socket, fd_set *read_fds, fd_set *maste
       }
     }
   }
-
   return 0;
 }
