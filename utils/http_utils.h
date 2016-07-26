@@ -51,10 +51,13 @@ int32_t receive_request(Connection *item, const int32_t transmission_rate);
 
 void handle_request(Connection *item, char *path);
 
-int32_t send_header(Connection *item);
-
 int32_t send_response(Connection *item, int32_t transmission_rate);
 
+int32_t send_header(Connection *item, int32_t transmission_rate);
+int32_t send_resource(Connection *item, int32_t transmission_rate);
+
 int verify_connection(ConnectionManager *manager, int32_t listening_socket, fd_set *read_fds, fd_set *master, int *greatest_fds );
+
+void create_default_response_files(char *path);
 
 #endif // HTTP_UTILS_H

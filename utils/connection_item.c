@@ -1,5 +1,6 @@
 #include "connection_item.h"
 #include <stdlib.h>
+#include <unistd.h>
 
 void init_connection_item(Connection *item, int socket_descriptor)
 {
@@ -24,6 +25,12 @@ void free_connection_item(Connection *item)
   item->response_size      = 0;
   item->next_ptr           = NULL;
   item->previous_ptr       = NULL;
+
+  if (item->socket_descriptor != -1)
+  {
+    close(item->socket_descriptor);
+    item->socket_descriptor = -1;
+  }
 
   if (item->resource_file != NULL)
   {

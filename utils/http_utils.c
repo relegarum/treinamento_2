@@ -11,22 +11,35 @@
 #include <fcntl.h>
 #include <netdb.h>
 
+#define MAX_ERROR_STR_SIZE 30
 #define PROTOCOL_SIZE     9
 #define OPERATION_SIZE    6
 #define MAX_RESOURCE_SIZE 50
+#define MAX_LONG_STR_SIZE 10 /* 4294967295 */
+#define MAX_REQUEST_MASK_SIZE 23 /* GET %s HTTP/1.0\r\n\r\n */
 
-static const char* HeaderBadRequest    = "HTTP/1.0 400 Bad Request\r\n";
-static const char* HeaderOk            = "HTTP/1.0 200 OK\r\n";
-static const char* HeaderNotFound      = "HTTP/1.0 404 Not Found\r\n";
-static const char* HeaderInternalError = "HTTP/1.0 500 Internal Server Error\r\n";
-static const char* HeaderUnauthorized  = "HTTP/1.0 401 Unauthorized\r\n";
-static const char* HeaderWrongVerison  = "HTTP/1.0 505 HTTP Version Not Supported\r\n";
-static const char* ContentLenghtMask   = "Content-Length=%d\r\n";
-static const char* ContentTypeStr      = "Content-Type=application/octet-stream\r\n";
-static const char* ServerStr           = "Server=Aker\r\n";
-static const char* IndexStr            = "/index.html";
-static const char* HTTP10Str           = "HTTP/1.0";
-static const char* HTTP11Str           = "HTTP/1.1";
+const char *RequestMsgMask      = "GET %s HTTP/1.0\r\n\r\n";
+const char *HeaderBadRequest    = "HTTP/1.0 400 Bad Request\r\n";
+const char *HeaderOk            = "HTTP/1.0 200 OK\r\n";
+const char *HeaderNotFound      = "HTTP/1.0 404 Not Found\r\n";
+const char *HeaderInternalError = "HTTP/1.0 500 Internal Server Error\r\n";
+const char *HeaderUnauthorized  = "HTTP/1.0 401 Unauthorized\r\n";
+const char *HeaderWrongVersion  = "HTTP/1.0 505 HTTP Version Not Supported\r\n";
+const char *ContentLenghtMask   = "Content-Length=%10d\r\n";
+const char *ContentTypeStr      = "Content-Type=application/octet-stream\r\n";
+const char *ServerStr           = "Server=Aker\r\n";
+const char *IndexStr            = "/index.html";
+const char *HTTP10Str           = "HTTP/1.0";
+const char *HTTP11Str           = "HTTP/1.1";
+
+const char *HtmlNotFoundFileName     = "NotFound.html";
+const char *HtmlInternalErrorName    = "InternalErrorName.html";
+const char *HtmlUnauthorizedFileName = "Unauthorized.html";
+const char *HtmlWrongVersionFileName = "WrongVersion.html";
+
+#define HTML_HEADER(number, string) "HTTP/1.0 "#number" "#string"\r\n";
+#define HTML_ERROR(number, string) "<HTML><TITLE>"#number" "#string"</TITLE><BODY><H2>"#number" "#string"</H2></BODY></HTML>"
+
 
 void *get_in_addr(struct sockaddr *sa)
 {
@@ -52,10 +65,10 @@ uint32_t get_response_size(char *first_chunk)
 
 uint32_t handle_response_status(char *http_response)
 {
-  char error_string[ 30 ];
+  char error_string[MAX_ERROR_STR_SIZE];
   int32_t status = 0;
 
-  if (sscanf(http_response,"HTTP/%*s %d %s\r\n", &status, error_string) != 2)
+  if (sscanf(http_response,"HTTP/%*s %3d %29s\r\n", &status, error_string) != 2)
   {
     printf("Coudn't parse HTTP Status\n");
     return -1;
@@ -104,12 +117,16 @@ uint32_t handle_response_status(char *http_response)
 /**/
 int32_t get_header(int socket_descriptor, char *resource_required, int32_t *header_length, int32_t *content_length)
 {
-  int resource_required_length = strlen(resource_required);
+  uint32_t resource_required_length = strlen(resource_required);
+  uint32_t request_msg_size         = MAX_REQUEST_MASK_SIZE + ((resource_required_length != 0)? resource_required_length : strlen(IndexStr));
 
-  char request_msg[ 80 ];
-  sprintf(request_msg, "GET %s HTTP/1.0\r\n\r\n", (resource_required_length != 0) ? resource_required : "/index.html");
+  char *request_msg = malloc(sizeof(char)*request_msg_size);
+
+  snprintf(request_msg, request_msg_size, RequestMsgMask, (resource_required_length != 0) ? resource_required : IndexStr);
   int32_t request_len = strlen(request_msg);
   int32_t bytes_sent = send(socket_descriptor, request_msg, request_len, 0);
+
+  free(request_msg);
   if (bytes_sent != request_len)
   {
     printf("Coudn't send entire request\n");
@@ -154,14 +171,8 @@ int32_t download_file(int socket_descriptor, char *hostname, char *resource_requ
   int32_t hostname_length          = strlen(hostname);
 
   char *request_mask = "GET %s HTTP/1.0\r\n"
-                       //"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8\r\n"
-                       //"Accept-Encoding: gzip, deflate, sdch\r\n"
-                       //"Accept-Language: en-US,en;q=0.8\r\n"
-                       //"Cache-Control: max-age=0\r\n"
-                       //"Connection: keep-alive\r\n"
                        "Host: %s\r\n"
-                       //"Upgrade-Insecure-Requests: 1\r\n"
-                       //"User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.108 Safari/537.36\r\n"
+                       "User-Agent: AkerClient\r\n"
                        "\r\n"
           ;
 
@@ -268,10 +279,10 @@ int32_t receive_request(Connection *item, const int32_t transmission_rate)
   char buffer[8000];
   char *carriage               = buffer;
   int32_t total_bytes_received = 0;
-  int32_t bytes_received       = 0;
   int32_t socket_descriptor    = item->socket_descriptor;
   while(1)
   {
+    int32_t bytes_received       = 0;
     bytes_received = recv(socket_descriptor, carriage, sizeof(buffer), 0);
     if (bytes_received < 0)
     {
@@ -296,8 +307,8 @@ int32_t receive_request(Connection *item, const int32_t transmission_rate)
   }
   buffer[total_bytes_received] = '\0'; /* *carriage = '\0*/
 
-  item->request = malloc(sizeof(char)*total_bytes_received);
-  memset( item->request, '\0', total_bytes_received);
+  item->request = malloc(sizeof(char)*(total_bytes_received + 1));
+  memset( item->request, '\0', total_bytes_received + 1);
   strncpy(item->request, buffer, total_bytes_received + 1);
   item->response_size = total_bytes_received;
   item->state = Sending;
@@ -311,7 +322,7 @@ int32_t send_response(Connection *item, int32_t transmission_rate)
   item->state = Sending;
   if(item->header_sent == 0)
   {
-    if (send_header(item) == -1)
+    if (send_header(item, transmission_rate) == -1)
     {
       return -1;
     }
@@ -323,35 +334,11 @@ int32_t send_response(Connection *item, int32_t transmission_rate)
     return -1;
   }
 
-  int32_t socket_descriptor = item->socket_descriptor;
-  char resource[transmission_rate + 20];
-  int32_t bytes_sent = 0;
-  int32_t bytes_read = 0;
-  fseek(item->resource_file, item->wroteData, SEEK_SET);
-  do
+  if (send_resource(item, transmission_rate) == -1)
   {
-    bytes_read = fread(resource, sizeof(char), transmission_rate, item->resource_file);
-
-    if ((bytes_read != -1) &&
-        (bytes_read != 0 ))
-    {
-      if (bytes_read < transmission_rate)
-      {
-        transmission_rate = bytes_read;
-      }
-      bytes_sent = send(socket_descriptor, resource, transmission_rate, 0);
-      if (bytes_sent == -1)
-      {
-        if (errno == EAGAIN)
-        {
-          break;
-        }
-        perror( "Error in send" );
-        return -1;
-      }
-      item->wroteData += bytes_sent;
-    }
-  }while (bytes_read != 0 && item->wroteData != item->response_size);
+    item->state = Sent;
+    return -1;
+  }
 
   if (item->wroteData > item->response_size)
   {
@@ -384,7 +371,7 @@ void handle_request(Connection *item, char *path)
   char *request = item->request;
   item->resource_file = NULL;
   item->response_size = 0;
-  if (sscanf(request, "%5s %s %8s\r\n", operation, resource, protocol) != 3)
+  if (sscanf(request, "%5s %49s %8s\r\n", operation, resource, protocol) != 3) // OPERATION_SIZE, MAX_RESOURCE_SIZE, PROTOCOL_SIZE
   {
     item->header = strdup(HeaderBadRequest);
     goto exit_handle;
@@ -393,7 +380,7 @@ void handle_request(Connection *item, char *path)
   if (strncmp(protocol, HTTP10Str, PROTOCOL_SIZE) != 0 &&
      (strncmp(protocol, HTTP11Str, PROTOCOL_SIZE) != 0 ) )
   {
-    item->header = strdup(HeaderWrongVerison);
+    item->header = strdup(HeaderWrongVersion);
     goto exit_handle;
   }
 
@@ -458,7 +445,7 @@ void handle_request(Connection *item, char *path)
   item->header     = malloc(sizeof(char) * (header_size));
   char *headerMask = malloc(sizeof(char) * (header_mask_size)); // \r\n
 
-  int size = buffer.st_size;
+  uint64_t size = buffer.st_size;
   snprintf(headerMask, header_mask_size, "%s%s%s%s\r\n", HeaderOk, ContentLenghtMask, ServerStr, ContentTypeStr);
   snprintf(item->header, header_size, headerMask, size);
   item->response_size = size;
@@ -473,7 +460,6 @@ exit_handle:
 int verify_connection(ConnectionManager *manager, int32_t listening_socket, fd_set *read_fds, fd_set *master, int *greatest_fds)
 {
   struct sockaddr_storage client_address;
-  char                    remote_ip[INET6_ADDRSTRLEN];
 
   if (FD_ISSET(listening_socket, read_fds))
   {
@@ -497,6 +483,7 @@ int verify_connection(ConnectionManager *manager, int32_t listening_socket, fd_s
         return -1;
       }
 
+      char remote_ip[INET6_ADDRSTRLEN];
       inet_ntop(client_address.ss_family,
                 get_in_addr((struct sockaddr *)&client_address),
                 remote_ip,
@@ -512,16 +499,16 @@ int verify_connection(ConnectionManager *manager, int32_t listening_socket, fd_s
   return 0;
 }
 
-int32_t send_header(Connection *item)
+int32_t send_header(Connection *item, int32_t transmission_rate)
 {
   int32_t socket_descriptor = item->socket_descriptor;
 
   int32_t total_bytes_sent  = 0;
-  int32_t bytes_sent        = 0;
   int32_t header_size       = strlen(item->header);
   char *header              = item->header;
   do
   {
+    int32_t bytes_sent        = 0;
     int32_t attempt_size = header_size - total_bytes_sent;
     bytes_sent = send(socket_descriptor, &header[total_bytes_sent], attempt_size, 0);
     if (bytes_sent == -1)
@@ -535,4 +522,66 @@ int32_t send_header(Connection *item)
   item->header_sent = 1;
 
   return 0;
+}
+
+int32_t send_resource(Connection *item, int32_t transmission_rate)
+{
+  int32_t socket_descriptor = item->socket_descriptor;
+  char resource[transmission_rate + 1];
+  int32_t bytes_read = 0;
+  int32_t bytes_sent = 0;
+  fseek(item->resource_file, item->wroteData, SEEK_SET);
+
+  bytes_read = fread(resource, sizeof(char), transmission_rate, item->resource_file);
+
+  if ((bytes_read != -1) &&
+      (bytes_read != 0 ))
+  {
+    if (bytes_read < transmission_rate)
+    {
+      transmission_rate = bytes_read;
+    }
+    int32_t total_byte_sent = 0;
+
+    int32_t bytes_to_sent = 0;
+    while (total_byte_sent != transmission_rate)
+    {
+      bytes_to_sent = transmission_rate - total_byte_sent;
+      bytes_sent = send(socket_descriptor, resource, bytes_to_sent, 0);
+      if (bytes_sent == -1)
+      {
+        if (errno == EAGAIN ||
+            errno == EWOULDBLOCK )
+        {
+          break;
+        }
+        perror( "Error in send" );
+        return -1;
+      }
+      item->wroteData += bytes_sent;
+      total_byte_sent += bytes_sent;
+
+      if (bytes_sent != transmission_rate)
+      {
+        printf( "flag to see if sent bytes isn't transmission rate" );
+      }
+    }
+  }
+
+  return 0;
+}
+
+void create_default_response_files(char *path)
+{
+  int32_t path_size = strlen(path);
+  char *path_not_found_file_name      = malloc(sizeof(char)*(strlen(HtmlNotFoundFileName) + path_size));
+  char *path_internal_error_file_name = malloc(sizeof(char)*(strlen(HtmlInternalErrorName) + path_size));
+  char *path_unauthorized_file_name   = malloc(sizeof(char)*(strlen(HtmlUnauthorizedFileName) + path_size));
+  char *path_wrong_file_name          = malloc(sizeof(char)*(strlen(HtmlWrongVersionFileName) + path_size));
+  {
+  }
+  free(path_not_found_file_name);
+  free(path_internal_error_file_name);
+  free(path_unauthorized_file_name);
+  free(path_wrong_file_name);
 }

@@ -22,8 +22,11 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <signal.h>
 
+#include <syslog.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
@@ -34,6 +37,7 @@
 #include "../utils/connection_item.h"
 #include "../utils/http_utils.h"
 
+int8_t terminated = 0;
 
 int32_t handle_arguments(int argc, char **argv, char **port, char **path)
 {
@@ -62,6 +66,40 @@ int32_t handle_arguments(int argc, char **argv, char **port, char **path)
   return 0;
 }
 
+void setup_deamon()
+{
+  pid_t pid;
+  pid_t sid;
+
+  pid = fork();
+  if (pid < 0)
+  {
+    exit(EXIT_FAILURE);
+  }
+
+  if (pid > 0)
+  {
+    exit(EXIT_SUCCESS);
+  }
+
+  umask(0);
+  sid = setsid();
+  if (sid < 0)
+  {
+    exit(EXIT_FAILURE);
+  }
+
+  if ((chdir("/")) < 0)
+  {
+    exit(EXIT_FAILURE);
+  }
+
+  close(STDIN_FILENO);
+  close(STDOUT_FILENO);
+  close(STDERR_FILENO);
+}
+
+/* Unit list test
 void teste_connection_manager()
 {
   ConnectionManager manager;
@@ -79,10 +117,26 @@ void teste_connection_manager()
   remove_connection_in_list(&manager, item1);
 
   free_list(&manager);
+}*/
+
+void handle_sigint(int signal_number)
+{
+  if (signal_number == SIGINT)
+  {
+    terminated = 1;
+  }
+
+  if (signal_number == SIGABRT)
+  {
+    printf("Abort!");
+    terminated = 1;
+  }
 }
 
 int main(int argc, char **argv)
 {
+  //char *teste = HTML_ERROR(404);
+  //setup_deamon();
   struct addrinfo *servinfo          = NULL;
   struct addrinfo *serverinfo_ptr    = NULL;
   int32_t listening_sock_description = -1;
@@ -166,9 +220,11 @@ int main(int argc, char **argv)
     goto exit;
   }
 
+  signal(SIGINT, handle_sigint);
+
   printf("server: waiting for connections...\n");
 
-  const int32_t transmission_rate = BUFSIZ;
+  const int32_t transmission_rate = 128;
   int    greatest_file_desc;
   fd_set master;
   fd_set read_fds;
@@ -182,8 +238,12 @@ int main(int argc, char **argv)
 
   while (1)
   {
+    if (terminated)
+    {
+      goto exit;
+    }
     read_fds  = master;
-     write_fds = master;
+    write_fds = master;
     if (select(greatest_file_desc + 1, &read_fds, &write_fds, NULL, NULL) == -1)
     {
       perror("select error");
@@ -231,49 +291,21 @@ int main(int argc, char **argv)
         ptr = ptr->next_ptr;
       }
     }
-
-
-    /*for (;index <= greatest_file_desc; ++index)
-    {
-      if (FD_ISSET(index, &read_fds))
-      {
-        if (index == listening_sock_description)
-        {
-          continue;
-        }
-        else
-        {
-          Connection* item = create_connection_item((index));
-
-          add_connection_in_list(&manager, item);
-
-          if (receive_request(item, transmission_rate) == -1)
-          {
-            success = -1;
-            goto exit;
-          }
-
-          handle_request(item, path);
-          send_response(item, &master, transmission_rate);
-
-          remove_connection_in_list(&manager,item);
-        }
-      }
-    }*/
   }
 
   success = 0;
 exit:
-  if (servinfo != NULL)
-  {
-    freeaddrinfo(servinfo);
-  }
+  free_list(&manager);
 
   if (listening_sock_description != -1)
   {
     close(listening_sock_description);
   }
-  free_list(&manager);
+
+  if (servinfo != NULL)
+  {
+    freeaddrinfo(servinfo);
+  }
 
   return success;
 }
