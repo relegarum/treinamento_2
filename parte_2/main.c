@@ -183,7 +183,7 @@ int main(int argc, char **argv)
   while (1)
   {
     read_fds  = master;
-    write_fds = master;
+     write_fds = master;
     if (select(greatest_file_desc + 1, &read_fds, &write_fds, NULL, NULL) == -1)
     {
       perror("select error");

@@ -175,9 +175,9 @@ int32_t download_file(int socket_descriptor, char *hostname, char *resource_requ
 
   int32_t request_len = strlen(request_msg);
   int32_t total_bytes_sent = 0;
-  int32_t bytes_sent = 0;
   do
   {
+    int32_t bytes_sent = 0;
     int32_t attempt_size = request_len - total_bytes_sent;
     bytes_sent = send(socket_descriptor, &request_msg[total_bytes_sent], attempt_size, 0);
     if (bytes_sent == -1)
@@ -309,28 +309,12 @@ int32_t receive_request(Connection *item, const int32_t transmission_rate)
 int32_t send_response(Connection *item, int32_t transmission_rate)
 {
   item->state = Sending;
-  int32_t socket_descriptor = item->socket_descriptor;
-
-  int32_t total_bytes_sent  = 0;
-  int32_t bytes_sent        = 0;
-  int32_t header_size       = strlen(item->header);
-  char *header              = item->header;
-
   if(item->header_sent == 0)
   {
-    do
+    if (send_header(item) == -1)
     {
-      int32_t attempt_size = header_size - total_bytes_sent;
-      bytes_sent = send(socket_descriptor, &header[total_bytes_sent], attempt_size, 0);
-      if (bytes_sent == -1)
-      {
-        perror( "Error in send" );
-        return -1;
-      }
-      total_bytes_sent += bytes_sent;
+      return -1;
     }
-    while (total_bytes_sent != header_size);
-    item->header_sent = 1;
   }
 
   if (item->resource_file == NULL)
@@ -339,10 +323,11 @@ int32_t send_response(Connection *item, int32_t transmission_rate)
     return -1;
   }
 
-  total_bytes_sent = 0;
-  bytes_sent = 0;
+  int32_t socket_descriptor = item->socket_descriptor;
   char resource[transmission_rate + 20];
+  int32_t bytes_sent = 0;
   int32_t bytes_read = 0;
+  fseek(item->resource_file, item->wroteData, SEEK_SET);
   do
   {
     bytes_read = fread(resource, sizeof(char), transmission_rate, item->resource_file);
@@ -367,11 +352,14 @@ int32_t send_response(Connection *item, int32_t transmission_rate)
       item->wroteData += bytes_sent;
     }
   }while (bytes_read != 0 && item->wroteData != item->response_size);
-  //free(item->header); // check this ####
 
-  if(item->wroteData != item->response_size)
+  if (item->wroteData > item->response_size)
   {
-    fseek(item->resource_file, -(bytes_read), SEEK_CUR);
+    printf("Error in read data: Preventing loop\n");
+    item->state = Sent;
+  }
+  else if (item->wroteData != item->response_size)
+  {
     return 0;
   }
 
@@ -396,7 +384,7 @@ void handle_request(Connection *item, char *path)
   char *request = item->request;
   item->resource_file = NULL;
   item->response_size = 0;
-  if (sscanf(request, "%s %s %s\r\n", operation, resource, protocol) != 3)
+  if (sscanf(request, "%5s %s %8s\r\n", operation, resource, protocol) != 3)
   {
     item->header = strdup(HeaderBadRequest);
     goto exit_handle;
@@ -455,23 +443,23 @@ void handle_request(Connection *item, char *path)
   }
   free(file_name);
 
-  int32_t contentLenghtMaskSize = strlen(ContentLenghtMask);
-  int32_t headerOkSize          = strlen(HeaderOk);
-  int32_t serverStrSize         = strlen(ServerStr);
-  int32_t contentTypeStrSize    = strlen(ContentTypeStr);
-  int32_t headerMaskSize        = headerOkSize +
-                                  serverStrSize +
-                                  contentLenghtMaskSize +
-                                  contentTypeStrSize +
+  int32_t content_length_mask_size = strlen(ContentLenghtMask);
+  int32_t header_ok_size          = strlen(HeaderOk);
+  int32_t server_str_size         = strlen(ServerStr);
+  int32_t content_type_str_size    = strlen(ContentTypeStr);
+  int32_t header_mask_size        = header_ok_size +
+                                  server_str_size +
+                                  content_length_mask_size +
+                                  content_type_str_size +
                                   3; /* \r\n\0 */
 
   const int32_t maxLenghtStrSize = 50;
-  const int32_t header_size      = headerMaskSize + maxLenghtStrSize + 3;
+  const int32_t header_size      = header_mask_size + maxLenghtStrSize + 3;
   item->header     = malloc(sizeof(char) * (header_size));
-  char *headerMask = malloc(sizeof(char) * (headerMaskSize)); // \r\n
+  char *headerMask = malloc(sizeof(char) * (header_mask_size)); // \r\n
 
   int size = buffer.st_size;
-  snprintf(headerMask, headerMaskSize, "%s%s%s%s\r\n", HeaderOk, ContentLenghtMask, ServerStr, ContentTypeStr);
+  snprintf(headerMask, header_mask_size, "%s%s%s%s\r\n", HeaderOk, ContentLenghtMask, ServerStr, ContentTypeStr);
   snprintf(item->header, header_size, headerMask, size);
   item->response_size = size;
   free(headerMask);
@@ -521,5 +509,30 @@ int verify_connection(ConnectionManager *manager, int32_t listening_socket, fd_s
       }
     }
   }
+  return 0;
+}
+
+int32_t send_header(Connection *item)
+{
+  int32_t socket_descriptor = item->socket_descriptor;
+
+  int32_t total_bytes_sent  = 0;
+  int32_t bytes_sent        = 0;
+  int32_t header_size       = strlen(item->header);
+  char *header              = item->header;
+  do
+  {
+    int32_t attempt_size = header_size - total_bytes_sent;
+    bytes_sent = send(socket_descriptor, &header[total_bytes_sent], attempt_size, 0);
+    if (bytes_sent == -1)
+    {
+      perror( "Error in send" );
+      return -1;
+    }
+    total_bytes_sent += bytes_sent;
+  }
+  while (total_bytes_sent != header_size);
+  item->header_sent = 1;
+
   return 0;
 }
