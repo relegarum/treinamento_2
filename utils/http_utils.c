@@ -32,6 +32,7 @@ const char *IndexStr            = "/index.html";
 const char *HTTP10Str           = "HTTP/1.0";
 const char *HTTP11Str           = "HTTP/1.1";
 
+const char *HtmlBadRequestFileName   = "BadRequest.html";
 const char *HtmlNotFoundFileName     = "NotFound.html";
 const char *HtmlInternalErrorName    = "InternalErrorName.html";
 const char *HtmlUnauthorizedFileName = "Unauthorized.html";
@@ -374,6 +375,7 @@ void handle_request(Connection *item, char *path)
   if (sscanf(request, "%5s %49s %8s\r\n", operation, resource, protocol) != 3) // OPERATION_SIZE, MAX_RESOURCE_SIZE, PROTOCOL_SIZE
   {
     item->header = strdup(HeaderBadRequest);
+    item->resource_file = bad_request_file;
     goto exit_handle;
   }
 
@@ -381,12 +383,14 @@ void handle_request(Connection *item, char *path)
      (strncmp(protocol, HTTP11Str, PROTOCOL_SIZE) != 0 ) )
   {
     item->header = strdup(HeaderWrongVersion);
+    item->resource_file = wrong_version_file;
     goto exit_handle;
   }
 
   if (strstr(resource, return_string) != NULL)
   {
     item->header = strdup(HeaderBadRequest);
+    item->resource_file = bad_request_file;
     goto exit_handle;
   }
 
@@ -403,37 +407,55 @@ void handle_request(Connection *item, char *path)
   char  *file_name = malloc(sizeof(char) * (file_name_size));
   snprintf(file_name, file_name_size, "%s%s", path, resource);
   item->resource_file = fopen(file_name, "rb");;
+  free(file_name);
+
   if (item->resource_file == NULL)
   {
     if (errno == EACCES)
     {
       item->header = strdup(HeaderUnauthorized);
+      item->resource_file = unauthorized_file;
+      item->error         = 1;
       goto exit_handle;
     }
     else if ( errno == E2BIG)
     {
       item->header = strdup(HeaderBadRequest);
+      item->resource_file = bad_request_file;
+      item->error         = 1;
       goto exit_handle;
     }
     else
     {
       item->header = strdup(HeaderNotFound);
+      item->resource_file = not_found_file;
+      item->error         = 1;
       goto exit_handle;
     }
   }
 
+exit_handle:
+  get_resource_data(item);
+  item->state = Sending;
+  return;
+}
+
+
+int32_t get_resource_data(Connection *item)
+{
+  int32_t fd = fileno( item->resource_file);
   struct stat buffer;
-  if (stat(file_name, &buffer) == -1 )
+  if (fstat(fd, &buffer) == -1)
   {
     item->header = strdup(HeaderInternalError);
-    goto exit_handle;
+    item->resource_file = NULL;
+    return -1;
   }
-  free(file_name);
 
   int32_t content_length_mask_size = strlen(ContentLenghtMask);
   int32_t header_ok_size          = strlen(HeaderOk);
   int32_t server_str_size         = strlen(ServerStr);
-  int32_t content_type_str_size    = strlen(ContentTypeStr);
+  int32_t content_type_str_size   = strlen(ContentTypeStr);
   int32_t header_mask_size        = header_ok_size +
                                   server_str_size +
                                   content_length_mask_size +
@@ -451,11 +473,8 @@ void handle_request(Connection *item, char *path)
   item->response_size = size;
   free(headerMask);
 
-exit_handle:
-  item->state = Sending;
-  return;
+  return 0;
 }
-
 
 int verify_connection(ConnectionManager *manager, int32_t listening_socket, fd_set *read_fds, fd_set *master, int *greatest_fds)
 {
@@ -567,19 +586,75 @@ int32_t send_resource(Connection *item, int32_t transmission_rate)
       }
     }
   }
-
   return 0;
 }
 
-void create_default_response_files(char *path)
+void create_default_response_files(char *path,
+                                   FILE **bad_request_file,
+                                   FILE **not_found_file,
+                                   FILE **internal_error_file,
+                                   FILE **unauthorized_file,
+                                   FILE **version_wrond_file)
 {
+
+  *not_found_file     = NULL;
+  *internal_error_file= NULL;
+  *unauthorized_file  = NULL;
+  *version_wrond_file = NULL;
+
   int32_t path_size = strlen(path);
-  char *path_not_found_file_name      = malloc(sizeof(char)*(strlen(HtmlNotFoundFileName) + path_size));
-  char *path_internal_error_file_name = malloc(sizeof(char)*(strlen(HtmlInternalErrorName) + path_size));
-  char *path_unauthorized_file_name   = malloc(sizeof(char)*(strlen(HtmlUnauthorizedFileName) + path_size));
-  char *path_wrong_file_name          = malloc(sizeof(char)*(strlen(HtmlWrongVersionFileName) + path_size));
+  char *path_bad_request_file_name    = malloc(sizeof(char)*(strlen(HtmlBadRequestFileName)   + path_size + 2));
+  char *path_not_found_file_name      = malloc(sizeof(char)*(strlen(HtmlNotFoundFileName)     + path_size + 2));
+  char *path_internal_error_file_name = malloc(sizeof(char)*(strlen(HtmlInternalErrorName)    + path_size + 2));
+  char *path_unauthorized_file_name   = malloc(sizeof(char)*(strlen(HtmlUnauthorizedFileName) + path_size + 2));
+  char *path_wrong_file_name          = malloc(sizeof(char)*(strlen(HtmlWrongVersionFileName) + path_size + 2));
   {
+    snprintf(path_bad_request_file_name, path_size + strlen(HtmlBadRequestFileName) + 2, "%s/%s", path, HtmlBadRequestFileName);
+    *bad_request_file = fopen(path_bad_request_file_name, "w+b");
+    if (*bad_request_file != NULL)
+    {
+      char *html = HTML_ERROR(400, Bad Request);
+      fwrite(html, sizeof(char), strlen(html), *bad_request_file);
+      fflush(*not_found_file);
+    }
+
+    snprintf(path_not_found_file_name, path_size + strlen(HtmlNotFoundFileName) + 2, "%s/%s", path, HtmlNotFoundFileName);
+    *not_found_file  = fopen(path_not_found_file_name, "w+b");
+    if (*not_found_file != NULL)
+    {
+      char *html = HTML_ERROR(404, Not Found);
+      fwrite(html, sizeof(char), strlen(html), *not_found_file);
+      fflush(*not_found_file);
+    }
+
+    snprintf(path_internal_error_file_name, path_size + strlen(HtmlInternalErrorName) + 2, "%s/%s", path, HtmlInternalErrorName);
+    *internal_error_file = fopen(path_internal_error_file_name, "w+b");
+    if (*internal_error_file != NULL)
+    {
+      char *html = HTML_ERROR(500, Internal Server Error);
+      fwrite(html, sizeof(char), strlen(html), *internal_error_file);
+      fflush(*internal_error_file);
+    }
+
+    snprintf(path_unauthorized_file_name, path_size + strlen(HtmlUnauthorizedFileName) + 2, "%s/%s", path, HtmlUnauthorizedFileName);
+    *unauthorized_file = fopen(path_unauthorized_file_name, "w+b");
+    if (*unauthorized_file != NULL)
+    {
+      char *html = HTML_ERROR(401, Unauthorized);
+      fwrite(html, sizeof(char), strlen(html), *unauthorized_file);
+      fflush(*unauthorized_file);
+    }
+
+    snprintf(path_wrong_file_name, path_size + strlen(HtmlWrongVersionFileName) + 2, "%s/%s", path, HtmlWrongVersionFileName);
+    *version_wrond_file  = fopen(path_wrong_file_name, "w+b");
+    if (*version_wrond_file != NULL)
+    {
+      char *html = HTML_ERROR(505, HTTP Version Not Supported);
+      fwrite(html, sizeof(char), strlen(html), *version_wrond_file);
+      fflush(*version_wrond_file);
+    }
   }
+  free(path_bad_request_file_name);
   free(path_not_found_file_name);
   free(path_internal_error_file_name);
   free(path_unauthorized_file_name);

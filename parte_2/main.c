@@ -135,7 +135,6 @@ void handle_sigint(int signal_number)
 
 int main(int argc, char **argv)
 {
-  //char *teste = HTML_ERROR(404);
   //setup_deamon();
   struct addrinfo *servinfo          = NULL;
   struct addrinfo *serverinfo_ptr    = NULL;
@@ -152,6 +151,13 @@ int main(int argc, char **argv)
     success = 1;
     goto exit;
   }
+
+  create_default_response_files(path,
+                                &bad_request_file,
+                                &not_found_file,
+                                &internal_error_file,
+                                &unauthorized_file,
+                                &wrong_version_file);
 
   const int32_t           true_value      = 1;
   const int32_t number_of_connections     = 100;
@@ -295,6 +301,37 @@ int main(int argc, char **argv)
 
   success = 0;
 exit:
+
+  if(bad_request_file != NULL)
+  {
+    fclose(bad_request_file);
+    bad_request_file = NULL;
+  }
+
+  if (not_found_file != NULL)
+  {
+    fclose(not_found_file);
+    not_found_file = NULL;
+  }
+
+  if(internal_error_file != NULL)
+  {
+    fclose(internal_error_file);
+    internal_error_file = NULL;
+  }
+
+  if(unauthorized_file != NULL)
+  {
+    fclose(unauthorized_file);
+    unauthorized_file = NULL;
+  }
+
+  if(wrong_version_file != NULL)
+  {
+    fclose(wrong_version_file);
+    wrong_version_file = NULL;
+  }
+
   free_list(&manager);
 
   if (listening_sock_description != -1)

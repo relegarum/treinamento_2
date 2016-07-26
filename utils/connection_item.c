@@ -7,6 +7,7 @@ void init_connection_item(Connection *item, int socket_descriptor)
   item->socket_descriptor = socket_descriptor;
   item->state              = Free;
   item->header_sent        = 0;
+  item->error              = 0;
   item->wroteData          = 0;
   item->response_size      = 0;
   item->resource_file      = NULL;
@@ -32,10 +33,13 @@ void free_connection_item(Connection *item)
     item->socket_descriptor = -1;
   }
 
-  if (item->resource_file != NULL)
+  if (item->error != 1)
   {
-    fclose(item->resource_file);
-    item->resource_file = NULL;
+    if (item->resource_file != NULL)
+    {
+      fclose(item->resource_file);
+      item->resource_file = NULL;
+    }
   }
 
   if (item->header != NULL)
