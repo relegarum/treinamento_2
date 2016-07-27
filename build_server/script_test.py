@@ -21,7 +21,7 @@ def download_file(file_url, fileout_name, i):
     + fileout_name + "_" + str(i) )
   print('#### Download end ---> '+ str(i) +' - '+ fileout_name + " ")  
 #os.system('curl -s --url 10.4.3.1:8080/teste_4gb.iso -o teste_4gb_ini.iso')
-for i in range(0,2):
+for i in range(0,20):
   print("-----------------------------------------------------")
   p = Process(target=download_file,
 args=(file_urls,file_urls[file_urls.rfind('/')+1:],i, ))

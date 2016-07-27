@@ -23,6 +23,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <signal.h>
+#include <time.h>
 
 #include <syslog.h>
 #include <sys/types.h>
@@ -215,7 +216,7 @@ int main(int argc, char **argv)
 
   printf("server: waiting for connections...\n");
 
-  const int32_t transmission_rate = BUFSIZ;
+  const int32_t transmission_rate = 1; // 1Mb/s
   int    greatest_file_desc;
   fd_set master;
   fd_set read_fds;
@@ -226,6 +227,10 @@ int main(int argc, char **argv)
   FD_ZERO(&write_fds);
   FD_SET(listening_sock_description, &master);
   greatest_file_desc = listening_sock_description;
+
+  time_t one_second_ms = 1000;
+  time_t begin;
+  time_t end;
 
   while (1)
   {
@@ -247,46 +252,53 @@ int main(int argc, char **argv)
       continue;
     }
 
-    //int32_t index = 0;
-    Connection *ptr = manager.head;
-    while (ptr != NULL)
+    time(&begin);
     {
-      if ((ptr->state == Free ||
-           ptr->state == Receiving ) &&
-          FD_ISSET(ptr->socket_descriptor, &read_fds))
+      //int32_t index = 0;
+      Connection *ptr = manager.head;
+      while (ptr != NULL)
       {
-        if (receive_request(ptr, transmission_rate) == -1)
+        if ((ptr->state == Free ||
+             ptr->state == Receiving ) &&
+            FD_ISSET(ptr->socket_descriptor, &read_fds))
         {
-          success = -1;
-          goto exit;
+          if (receive_request(ptr, transmission_rate) == -1)
+          {
+            success = -1;
+            goto exit;
+          }
+        }
+
+        if (ptr->state == Handling )
+        {
+          handle_request(ptr, path);
+        }
+
+        if (ptr->state == Sending &&
+            (FD_ISSET(ptr->socket_descriptor, &write_fds)) )
+        {
+          send_response(ptr, transmission_rate);
+        }
+
+        if (ptr->state == Sent)
+        {
+          Connection *next = ptr->next_ptr;
+          //printf("Socket = %d closed\n\n", ptr->socket_descriptor);
+          close(ptr->socket_descriptor);
+          FD_CLR(ptr->socket_descriptor, &master);
+          remove_connection_in_list(&manager, ptr);
+          ptr = next;
+        }
+        else
+        {
+          ptr = ptr->next_ptr;
         }
       }
-
-      if (ptr->state == Handling )
-      {
-        handle_request(ptr, path);
-      }
-
-      if (ptr->state == Sending &&
-          (FD_ISSET(ptr->socket_descriptor, &write_fds)) )
-      {
-        send_response(ptr, transmission_rate);
-      }
-
-      if (ptr->state == Sent)
-      {
-        Connection *next = ptr->next_ptr;
-        //printf("Socket = %d closed\n\n", ptr->socket_descriptor);
-        close(ptr->socket_descriptor);
-        FD_CLR(ptr->socket_descriptor, &master);
-        remove_connection_in_list(&manager, ptr);
-        ptr = next;
-      }
-      else
-      {
-        ptr = ptr->next_ptr;
-      }
     }
+    time(&end);
+    time_t diff_trunc = difftime(begin, end) * one_second_ms;
+    time_t teste = (one_second_ms - diff_trunc)*1000;
+    usleep(teste);
   }
 
   success = 0;
