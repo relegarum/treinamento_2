@@ -215,7 +215,7 @@ int main(int argc, char **argv)
 
   printf("server: waiting for connections...\n");
 
-  const int32_t transmission_rate = 128;
+  const int32_t transmission_rate = BUFSIZ;
   int    greatest_file_desc;
   fd_set master;
   fd_set read_fds;
@@ -260,7 +260,10 @@ int main(int argc, char **argv)
           success = -1;
           goto exit;
         }
+      }
 
+      if (ptr->state == Handling )
+      {
         handle_request(ptr, path);
       }
 
@@ -273,7 +276,7 @@ int main(int argc, char **argv)
       if (ptr->state == Sent)
       {
         Connection *next = ptr->next_ptr;
-        printf("Socket = %d closed\n\n", ptr->socket_descriptor);
+        //printf("Socket = %d closed\n\n", ptr->socket_descriptor);
         close(ptr->socket_descriptor);
         FD_CLR(ptr->socket_descriptor, &master);
         remove_connection_in_list(&manager, ptr);

@@ -54,7 +54,7 @@ void test_connection_manager()
 }
 
 
-void test_verify_path()
+int32_t test_verify_path()
 {
   char *test_return = "/home/abaiao/repo/treinamento/build_server/index.html";
   char *path = "/home/abaiao/repo/treinamento/build_server";

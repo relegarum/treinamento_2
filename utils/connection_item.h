@@ -19,7 +19,8 @@ typedef struct ConnectionStruct
   uint8_t  state;
   uint8_t  header_sent;
   uint8_t  error;
-  uint64_t wroteData;
+  uint64_t read_data;
+  uint64_t wrote_data;
   uint64_t response_size;
   char     *request;
   FILE     *resource_file;

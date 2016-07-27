@@ -21,12 +21,12 @@
 #define MAX_REQUEST_MASK_SIZE 23 /* GET %s HTTP/1.0\r\n\r\n */
 
 const char *RequestMsgMask      = "GET %s HTTP/1.0\r\n\r\n";
-const char *HeaderBadRequest    = "HTTP/1.0 400 Bad Request\r\n";
+const char *HeaderBadRequest    = "HTTP/1.0 400 Bad Request\r\n\r\n";
 const char *HeaderOk            = "HTTP/1.0 200 OK\r\n";
-const char *HeaderNotFound      = "HTTP/1.0 404 Not Found\r\n";
-const char *HeaderInternalError = "HTTP/1.0 500 Internal Server Error\r\n";
-const char *HeaderUnauthorized  = "HTTP/1.0 401 Unauthorized\r\n";
-const char *HeaderWrongVersion  = "HTTP/1.0 505 HTTP Version Not Supported\r\n";
+const char *HeaderNotFound      = "HTTP/1.0 404 Not Found\r\n\r\n";
+const char *HeaderInternalError = "HTTP/1.0 500 Internal Server Error\r\n\r\n";
+const char *HeaderUnauthorized  = "HTTP/1.0 401 Unauthorized\r\n\r\n";
+const char *HeaderWrongVersion  = "HTTP/1.0 505 HTTP Version Not Supported\r\n\r\n";
 const char *ContentLenghtMask   = "Content-Length=%10d\r\n";
 const char *ContentTypeStr      = "Content-Type=application/octet-stream\r\n";
 const char *ServerStr           = "Server=Aker\r\n";
@@ -279,8 +279,57 @@ int32_t handle_header(int socket_descriptor, int32_t *header_length, int32_t *co
   return 0;
 }
 
-
 int32_t receive_request(Connection *item, const int32_t transmission_rate)
+{
+  item->state = Receiving;
+  item->request = realloc(item->request, sizeof(char)*(item->read_data + transmission_rate + 1));
+
+  char *carriage = item->request + item->read_data;
+
+  int32_t total_bytes_received = 0;
+  int32_t socket_descriptor    = item->socket_descriptor;
+  int8_t no_more_data = 0;
+  do
+  {
+    int32_t bytes_to_read  = transmission_rate - total_bytes_received;
+    int32_t bytes_received = recv(socket_descriptor, carriage, bytes_to_read, 0);
+    if (bytes_received < 0)
+    {
+      if( errno == EWOULDBLOCK || errno == EAGAIN )
+      {
+        no_more_data = 1;
+        break;
+      }
+      else
+      {
+        perror("recv");
+        return -1;
+      }
+    }
+
+    if (bytes_received == 0)
+    {
+      no_more_data = 1;
+      break;
+    }
+
+    total_bytes_received += bytes_received;
+    item->read_data      += bytes_received;
+    carriage             += bytes_received; /*&buffer[total_bytes_received]*/
+  } while((transmission_rate != total_bytes_received));
+
+  if (no_more_data)
+  {
+    item->request[item->read_data + 1] = '\0'; /* *carriage = '\0*/
+    //printf("%s\n",item->request);
+    item->state = Handling;
+  }
+  //printf("Incomming request: \n%s\n", item->request);
+
+  return 0;
+}
+
+int32_t receive_request_blocking(Connection *item)
 {
   item->state = Receiving;
   char buffer[MAX_REQUEST_SIZE];
@@ -347,12 +396,12 @@ int32_t send_response(Connection *item, int32_t transmission_rate)
     return -1;
   }
 
-  if (item->wroteData > item->response_size)
+  if (item->wrote_data > item->response_size)
   {
     printf("Error in read data: Preventing loop\n");
     item->state = Sent;
   }
-  else if (item->wroteData != item->response_size)
+  else if (item->wrote_data != item->response_size)
   {
     return 0;
   }
@@ -393,26 +442,6 @@ void handle_request(Connection *item, char *path)
     goto exit_handle;
   }
 
-  /*char *return_string = "..";
-  if (strstr(resource, return_string) != NULL)
-  {
-    item->header = strdup(HeaderBadRequest);
-    item->resource_file = bad_request_file;
-    goto exit_handle;
-  }
-
-  int32_t resource_size = strlen(resource);
-  if( strncmp(resource, "/", resource_size) == 0 ||
-      strncmp(resource, ".", resource_size) == 0 )
-  {
-    strncpy(resource, IndexStr, strlen(IndexStr));
-  }
-
-  resource_size = strlen(resource);
-  const int32_t path_size      = strlen(path);
-  const int32_t file_name_size = path_size + resource_size + 1;
-  char  *file_name = malloc(sizeof(char) * (file_name_size));
-  snprintf(file_name, file_name_size, "%s%s", path, resource);*/
   char file_name[PATH_MAX];
   if (verify_file_path(path, resource, file_name) != 0)
   {
@@ -465,6 +494,8 @@ int32_t get_resource_data(Connection *item)
     item->resource_file = NULL;
     return -1;
   }
+  uint64_t size = buffer.st_size;
+  item->response_size = size;
 
   if (item->error == 1)
   {
@@ -487,10 +518,9 @@ int32_t get_resource_data(Connection *item)
   item->header     = malloc(sizeof(char) * (header_size));
   char *headerMask = malloc(sizeof(char) * (header_mask_size)); // \r\n
 
-  uint64_t size = buffer.st_size;
+
   snprintf(headerMask, header_mask_size, "%s%s%s%s\r\n", HeaderOk, ContentLenghtMask, ServerStr, ContentTypeStr);
   snprintf(item->header, header_size, headerMask, size);
-  item->response_size = size;
   free(headerMask);
 
   return 0;
@@ -520,11 +550,14 @@ int verify_connection(ConnectionManager *manager,
       Connection* item = create_connection_item(new_socket_description);
       add_connection_in_list(manager, item);
       FD_SET(new_socket_description, master);
+
+      /** Set connection as nonblock*/
       if (fcntl(new_socket_description, F_SETFL, fcntl(new_socket_description, F_GETFL) | O_NONBLOCK) < 0)
       {
         perror("fcntl");
         return -1;
       }
+
 
       char remote_ip[INET6_ADDRSTRLEN];
       inet_ntop(client_address.ss_family,
@@ -532,7 +565,7 @@ int verify_connection(ConnectionManager *manager,
                 remote_ip,
                 sizeof(remote_ip));
 
-      printf("Connection from %s -> socket_num = %d\n", remote_ip, new_socket_description);
+      //printf("Connection from %s -> socket_num = %d\n", remote_ip, new_socket_description);
       if (new_socket_description > *greatest_fds)
       {
         *greatest_fds = new_socket_description;
@@ -573,7 +606,7 @@ int32_t send_resource(Connection *item, int32_t transmission_rate)
   char resource[transmission_rate + 1];
   int32_t bytes_read = 0;
   int32_t bytes_sent = 0;
-  fseek(item->resource_file, item->wroteData, SEEK_SET);
+  fseek(item->resource_file, item->wrote_data, SEEK_SET);
 
   bytes_read = fread(resource, sizeof(char), transmission_rate, item->resource_file);
 
@@ -586,11 +619,10 @@ int32_t send_resource(Connection *item, int32_t transmission_rate)
     }
     int32_t total_byte_sent = 0;
 
-    int32_t bytes_to_sent = 0;
     while (total_byte_sent != transmission_rate)
     {
-      bytes_to_sent = transmission_rate - total_byte_sent;
-      bytes_sent = send(socket_descriptor, resource, bytes_to_sent, 0);
+      int32_t bytes_to_sent = transmission_rate - total_byte_sent;
+      bytes_sent = send(socket_descriptor, resource, bytes_to_sent, MSG_NOSIGNAL);
       if (bytes_sent == -1)
       {
         if (errno == EAGAIN ||
@@ -601,7 +633,7 @@ int32_t send_resource(Connection *item, int32_t transmission_rate)
         perror( "Error in send" );
         return -1;
       }
-      item->wroteData += bytes_sent;
+      item->wrote_data += bytes_sent;
       total_byte_sent += bytes_sent;
 
       if (bytes_sent != transmission_rate)
