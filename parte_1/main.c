@@ -26,20 +26,23 @@
 
 #include "../utils/http_utils.h"
 
-int handle_file(char* fileName, uint8_t overwrite, FILE **output)
+#define MAX_SIZE_RESOURCE_REQUIRED 100
+#define MAX_SIZE_HOSTNAME 100
+
+int handle_file(char *file_Name, uint8_t overwrite, FILE **output)
 {
   {
     struct stat buffer;
-    int result = stat(fileName, &buffer);
+    int result = stat(file_Name, &buffer);
     if (result != 0)
     {
-      *output = fopen(fileName, "w");
+      *output = fopen(file_Name, "w");
     }
     else
     {
       if (overwrite == 1)
       {
-        *output = fopen(fileName, "w");
+        *output = fopen(file_Name, "w");
       }
       else
       {
@@ -86,7 +89,7 @@ int handle_arguments(int argc,
   get_resource(argv[index_of_uri], hostname, resource_required);
 
   /*Get addrinfo*/
-  int32_t status = getaddrinfo(hostname, "80", &hints, &res);
+  int32_t status = getaddrinfo(hostname, "2196", &hints, &res);
   if (status != 0)
   {
     printf("getaddrinfo: %s\n", gai_strerror(status));
@@ -112,12 +115,20 @@ int main(int argc, char **argv)
 {
   struct addrinfo *server_info = NULL;
   FILE            *output_file = NULL;
-  char		       resource_required[ 100 ];
-  char		       hostname[ 100 ];
+  char		       resource_required[ MAX_SIZE_RESOURCE_REQUIRED ];
+  char		       hostname[ MAX_SIZE_HOSTNAME ];
+
+  memset(resource_required, '\0', MAX_SIZE_RESOURCE_REQUIRED);
+  memset(hostname,          '\0', MAX_SIZE_HOSTNAME);
 
   int32_t ret =  0;
   int socket_descriptor = -1;
-  if (handle_arguments(argc, argv, &server_info, resource_required, hostname, &output_file) != 0)
+  if (handle_arguments(argc,
+                       argv,
+                       &server_info,
+                       resource_required,
+                       hostname,
+                       &output_file) != 0)
   {
     printf( "Couldn't handle arguments\n" );
     ret = -1;

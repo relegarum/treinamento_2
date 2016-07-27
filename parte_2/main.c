@@ -37,6 +37,8 @@
 #include "../utils/connection_item.h"
 #include "../utils/http_utils.h"
 
+//#include "../utils/test_suit.h"
+
 int8_t terminated = 0;
 
 int32_t handle_arguments(int argc, char **argv, char **port, char **path)
@@ -99,25 +101,6 @@ void setup_deamon()
   close(STDERR_FILENO);
 }
 
-/* Unit list test
-void teste_connection_manager()
-{
-  ConnectionManager manager;
-  init_list(&manager);
-  Connection *item1 = create_connection_item(1);
-  Connection *item2 = create_connection_item(2);
-  Connection *item3 = create_connection_item(3);
-  Connection *item10 = create_connection_item(10);
-
-  add_connection_in_list(&manager, item1);
-  add_connection_in_list(&manager, item2);
-  add_connection_in_list(&manager, item3);
-  add_connection_in_list(&manager, item10);
-
-  remove_connection_in_list(&manager, item1);
-
-  free_list(&manager);
-}*/
 
 void handle_sigint(int signal_number)
 {
@@ -135,9 +118,9 @@ void handle_sigint(int signal_number)
 
 int main(int argc, char **argv)
 {
+  //test_verify_path();
   //setup_deamon();
   struct addrinfo *servinfo          = NULL;
-  struct addrinfo *serverinfo_ptr    = NULL;
   int32_t listening_sock_description = -1;
 
   char *port;
@@ -160,7 +143,7 @@ int main(int argc, char **argv)
                                 &wrong_version_file);
 
   const int32_t           true_value      = 1;
-  const int32_t number_of_connections     = 100;
+  const int32_t number_of_connections     = 200;
   struct addrinfo         hints;
 
 
@@ -175,6 +158,7 @@ int main(int argc, char **argv)
     goto exit;
   }
 
+  struct addrinfo *serverinfo_ptr    = NULL;
   // Get valid socket to listen
   for (serverinfo_ptr = servinfo;
        serverinfo_ptr != NULL;
@@ -217,6 +201,7 @@ int main(int argc, char **argv)
     goto exit;
   }
   freeaddrinfo(servinfo);
+  servinfo       = NULL;
   serverinfo_ptr = NULL;
 
   if (listen(listening_sock_description, number_of_connections) == -1)
@@ -266,7 +251,9 @@ int main(int argc, char **argv)
     Connection *ptr = manager.head;
     while (ptr != NULL)
     {
-      if (FD_ISSET(ptr->socket_descriptor, &read_fds))
+      if ((ptr->state == Free ||
+           ptr->state == Receiving ) &&
+          FD_ISSET(ptr->socket_descriptor, &read_fds))
       {
         if (receive_request(ptr, transmission_rate) == -1)
         {
@@ -302,35 +289,7 @@ int main(int argc, char **argv)
   success = 0;
 exit:
 
-  if(bad_request_file != NULL)
-  {
-    fclose(bad_request_file);
-    bad_request_file = NULL;
-  }
-
-  if (not_found_file != NULL)
-  {
-    fclose(not_found_file);
-    not_found_file = NULL;
-  }
-
-  if(internal_error_file != NULL)
-  {
-    fclose(internal_error_file);
-    internal_error_file = NULL;
-  }
-
-  if(unauthorized_file != NULL)
-  {
-    fclose(unauthorized_file);
-    unauthorized_file = NULL;
-  }
-
-  if(wrong_version_file != NULL)
-  {
-    fclose(wrong_version_file);
-    wrong_version_file = NULL;
-  }
+  clean_default_files();
 
   free_list(&manager);
 

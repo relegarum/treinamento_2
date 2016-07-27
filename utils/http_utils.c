@@ -1,5 +1,6 @@
 #include "http_utils.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -11,11 +12,12 @@
 #include <fcntl.h>
 #include <netdb.h>
 
-#define MAX_ERROR_STR_SIZE 30
-#define PROTOCOL_SIZE     9
-#define OPERATION_SIZE    6
-#define MAX_RESOURCE_SIZE 50
-#define MAX_LONG_STR_SIZE 10 /* 4294967295 */
+#define MAX_REQUEST_SIZE      8000
+#define MAX_ERROR_STR_SIZE    30
+#define PROTOCOL_SIZE         9
+#define OPERATION_SIZE        6
+#define MAX_RESOURCE_SIZE     50
+#define MAX_LONG_STR_SIZE     10 /* 4294967295 */
 #define MAX_REQUEST_MASK_SIZE 23 /* GET %s HTTP/1.0\r\n\r\n */
 
 const char *RequestMsgMask      = "GET %s HTTP/1.0\r\n\r\n";
@@ -168,20 +170,25 @@ void get_resource(char *uri, char *hostname, char *resource)
 
 int32_t download_file(int socket_descriptor, char *hostname, char *resource_required, int32_t transmission_rate, FILE *output_file)
 {
-  int32_t resource_required_length = strlen(resource_required);
-  int32_t hostname_length          = strlen(hostname);
+  uint32_t resource_required_length = strlen(resource_required);
+  uint32_t hostname_length          = strlen(hostname);
 
-  char *request_mask = "GET %s HTTP/1.0\r\n"
-                       "Host: %s\r\n"
-                       "User-Agent: AkerClient\r\n"
-                       "\r\n"
-          ;
+  const char *request_mask = "GET %s HTTP/1.0\r\n"
+                             "Host: %s\r\n"
+                             "User-Agent: AkerClient\r\n"
+                             "\r\n";
+  uint32_t request_mask_length = strlen(request_mask);
+  uint32_t request_total_size = request_mask_length +
+                               ((resource_required_length != 0) ? resource_required_length : strlen("/index.html"))+
+                               hostname_length +
+                               1;
 
-  char *request_msg = malloc(sizeof(char)*(strlen(request_mask) + resource_required_length + hostname_length + 1));
-  sprintf(request_msg,
-          request_mask,
-          (resource_required_length != 0) ? resource_required : "/index.html",
-          hostname );
+  char *request_msg = malloc(sizeof(char)*(request_total_size));
+  snprintf(request_msg,
+           request_total_size,
+           request_mask,
+           (resource_required_length != 0) ? resource_required : "/index.html",
+           hostname );
 
   printf( "%s\n", request_msg );
 
@@ -276,8 +283,7 @@ int32_t handle_header(int socket_descriptor, int32_t *header_length, int32_t *co
 int32_t receive_request(Connection *item, const int32_t transmission_rate)
 {
   item->state = Receiving;
-  // Read data from client (( use http_utils.c ))%
-  char buffer[8000];
+  char buffer[MAX_REQUEST_SIZE];
   char *carriage               = buffer;
   int32_t total_bytes_received = 0;
   int32_t socket_descriptor    = item->socket_descriptor;
@@ -367,8 +373,6 @@ void handle_request(Connection *item, char *path)
   memset(resource,  '\0', MAX_RESOURCE_SIZE);
   memset(protocol,  '\0', PROTOCOL_SIZE);
 
-  char *return_string = "..";
-
   char *request = item->request;
   item->resource_file = NULL;
   item->response_size = 0;
@@ -376,6 +380,7 @@ void handle_request(Connection *item, char *path)
   {
     item->header = strdup(HeaderBadRequest);
     item->resource_file = bad_request_file;
+    item->error = 1;
     goto exit_handle;
   }
 
@@ -384,9 +389,11 @@ void handle_request(Connection *item, char *path)
   {
     item->header = strdup(HeaderWrongVersion);
     item->resource_file = wrong_version_file;
+    item->error = 1;
     goto exit_handle;
   }
 
+  /*char *return_string = "..";
   if (strstr(resource, return_string) != NULL)
   {
     item->header = strdup(HeaderBadRequest);
@@ -405,10 +412,17 @@ void handle_request(Connection *item, char *path)
   const int32_t path_size      = strlen(path);
   const int32_t file_name_size = path_size + resource_size + 1;
   char  *file_name = malloc(sizeof(char) * (file_name_size));
-  snprintf(file_name, file_name_size, "%s%s", path, resource);
-  item->resource_file = fopen(file_name, "rb");;
-  free(file_name);
+  snprintf(file_name, file_name_size, "%s%s", path, resource);*/
+  char file_name[PATH_MAX];
+  if (verify_file_path(path, resource, file_name) != 0)
+  {
+    item->header = strdup(HeaderNotFound);
+    item->resource_file = not_found_file;
+    item->error = 1;
+    goto exit_handle;
+  }
 
+  item->resource_file = fopen(file_name, "rb");
   if (item->resource_file == NULL)
   {
     if (errno == EACCES)
@@ -418,7 +432,7 @@ void handle_request(Connection *item, char *path)
       item->error         = 1;
       goto exit_handle;
     }
-    else if ( errno == E2BIG)
+    else if (errno == E2BIG)
     {
       item->header = strdup(HeaderBadRequest);
       item->resource_file = bad_request_file;
@@ -443,13 +457,19 @@ exit_handle:
 
 int32_t get_resource_data(Connection *item)
 {
-  int32_t fd = fileno( item->resource_file);
+  int32_t fd = fileno(item->resource_file);
   struct stat buffer;
   if (fstat(fd, &buffer) == -1)
   {
     item->header = strdup(HeaderInternalError);
     item->resource_file = NULL;
     return -1;
+  }
+
+  if (item->error == 1)
+  {
+    /* There is no need to setup header in error*/
+    return 0;
   }
 
   int32_t content_length_mask_size = strlen(ContentLenghtMask);
@@ -462,8 +482,8 @@ int32_t get_resource_data(Connection *item)
                                   content_type_str_size +
                                   3; /* \r\n\0 */
 
-  const int32_t maxLenghtStrSize = 50;
-  const int32_t header_size      = header_mask_size + maxLenghtStrSize + 3;
+  const int32_t max_Length_str_size = 50;
+  const int32_t header_size      = header_mask_size + max_Length_str_size + 3;
   item->header     = malloc(sizeof(char) * (header_size));
   char *headerMask = malloc(sizeof(char) * (header_mask_size)); // \r\n
 
@@ -476,7 +496,11 @@ int32_t get_resource_data(Connection *item)
   return 0;
 }
 
-int verify_connection(ConnectionManager *manager, int32_t listening_socket, fd_set *read_fds, fd_set *master, int *greatest_fds)
+int verify_connection(ConnectionManager *manager,
+                      int32_t listening_socket,
+                      fd_set *read_fds,
+                      fd_set *master,
+                      int *greatest_fds)
 {
   struct sockaddr_storage client_address;
 
@@ -659,4 +683,77 @@ void create_default_response_files(char *path,
   free(path_internal_error_file_name);
   free(path_unauthorized_file_name);
   free(path_wrong_file_name);
+}
+
+void clean_default_files()
+{
+  if(bad_request_file != NULL)
+  {
+    printf("bad req\n");
+    fclose(bad_request_file);
+    bad_request_file = NULL;
+  }
+
+  if (not_found_file != NULL)
+  {
+    fclose(not_found_file);
+    not_found_file = NULL;
+  }
+
+  if(internal_error_file != NULL)
+  {
+    fclose(internal_error_file);
+    internal_error_file = NULL;
+  }
+
+  if(unauthorized_file != NULL)
+  {
+    fclose(unauthorized_file);
+    unauthorized_file = NULL;
+  }
+
+  if(wrong_version_file != NULL)
+  {
+    fclose(wrong_version_file);
+    wrong_version_file = NULL;
+  }
+}
+
+int8_t verify_file_path(char *path, char *resource, char *fullpath)
+{
+  int32_t resource_size = strlen(resource);
+  if( strncmp(resource, "/", resource_size) == 0 ||
+      strncmp(resource, ".", resource_size) == 0 )
+  {
+    strncpy(resource, IndexStr, strlen(IndexStr));
+  }
+
+  // build string
+  resource_size = strlen(resource);
+  const int32_t path_size      = strlen(path);
+  const int32_t file_name_size = path_size + resource_size + 1;
+  char real_path[PATH_MAX];
+  memset(real_path, '\0', PATH_MAX);
+  snprintf(fullpath, file_name_size, "%s%s", path, resource);
+  if  (realpath(fullpath, real_path) != NULL )
+  {
+    if (strncmp(path, real_path, path_size) != 0)
+    {
+      printf("Directory not found\n");
+      goto clear_full_path;
+    }
+  }
+  else
+  {
+    printf("Directory not found\n");
+    goto clear_full_path;
+  }
+
+  memset(fullpath, '\0', PATH_MAX);
+  strncpy(fullpath, real_path, strlen(real_path) + 1);
+  return 0;
+
+clear_full_path:
+  memset(fullpath, '\0', PATH_MAX);
+  return 1;
 }
