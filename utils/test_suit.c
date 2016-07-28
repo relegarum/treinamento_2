@@ -71,7 +71,7 @@ int32_t test_verify_path()
     return 1;
   }
 
-  if (strncmp(test_return,full_path, strlen(test_return) != 0 ))
+  if (strncmp(test_return,full_path, strlen(test_return)) != 0 )
   {
     printf("Error test Ok");
     return 1;
@@ -89,7 +89,7 @@ int32_t test_verify_path()
     return 1;
   }
 
-  if (strncmp(test_return,full_path, strlen(test_return) != 0 ))
+  if (strncmp(test_return,full_path, strlen(test_return)) != 0 )
   {
     printf("Error test Ok");
     return 1;
@@ -101,7 +101,7 @@ int32_t test_verify_path()
     return 1;
   }
 
-  if (strncmp(test_return,full_path, strlen(test_return) != 0 ))
+  if (strncmp(test_return,full_path, strlen(test_return)) != 0 )
   {
     printf("Error test Ok");
     return 1;

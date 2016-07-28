@@ -8,7 +8,7 @@ void init_connection_item(Connection *item, int socket_descriptor)
   item->state              = Free;
   item->header_sent        = 0;
   item->error              = 0;
-  item->wrote_data          = 0;
+  item->wrote_data         = 0;
   item->read_data          = 0;
   item->response_size      = 0;
   item->resource_file      = NULL;
@@ -20,7 +20,6 @@ void init_connection_item(Connection *item, int socket_descriptor)
 
 void free_connection_item(Connection *item)
 {
-  item->socket_descriptor = -1;
   item->state              = Closed;
   item->header_sent        = 0;
   item->read_data          = 0;

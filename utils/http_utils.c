@@ -27,9 +27,9 @@ const char *HeaderNotFound      = "HTTP/1.0 404 Not Found\r\n\r\n";
 const char *HeaderInternalError = "HTTP/1.0 500 Internal Server Error\r\n\r\n";
 const char *HeaderUnauthorized  = "HTTP/1.0 401 Unauthorized\r\n\r\n";
 const char *HeaderWrongVersion  = "HTTP/1.0 505 HTTP Version Not Supported\r\n\r\n";
-const char *ContentLenghtMask   = "Content-Length=%10d\r\n";
-const char *ContentTypeStr      = "Content-Type=application/octet-stream\r\n";
-const char *ServerStr           = "Server=Aker\r\n";
+const char *ContentLenghtMask   = "Content-Length: %lld\r\n";
+const char *ContentTypeStr      = "Content-Type= application/octet-stream\r\n";
+const char *ServerStr           = "Server: Aker\r\n";
 const char *IndexStr            = "/index.html";
 const char *HTTP10Str           = "HTTP/1.0";
 const char *HTTP11Str           = "HTTP/1.1";
@@ -168,7 +168,11 @@ void get_resource(char *uri, char *hostname, char *resource)
   }
 }
 
-int32_t download_file(int socket_descriptor, char *hostname, char *resource_required, int32_t transmission_rate, FILE *output_file)
+int32_t download_file(int socket_descriptor,
+                      char *hostname,
+                      char *resource_required,
+                      int32_t transmission_rate,
+                      FILE *output_file)
 {
   uint32_t resource_required_length = strlen(resource_required);
   uint32_t hostname_length          = strlen(hostname);
@@ -273,25 +277,25 @@ int32_t handle_header(int socket_descriptor, int32_t *header_length, int32_t *co
 
   char *pointer    = strstr( header_slice, "\r\n\r\n");
   char *contentPtr = pointer + 4; /*strlen( \r\n\r\n )*/
-  *header_length    = (contentPtr - header_slice);
-  *content_size     = get_response_size( header_slice );
+  *header_length   = (contentPtr - header_slice);
+  *content_size    = get_response_size( header_slice );
 
   return 0;
 }
 
-int32_t receive_request(Connection *item, const int32_t transmission_rate)
+int32_t receive_request(Connection *item, const uint32_t transmission_rate)
 {
   item->state = Receiving;
   item->request = realloc(item->request, sizeof(char)*(item->read_data + transmission_rate + 1));
 
   char *carriage = item->request + item->read_data;
 
-  int32_t total_bytes_received = 0;
+  uint32_t total_bytes_received = 0;
   int32_t socket_descriptor    = item->socket_descriptor;
   int8_t no_more_data = 0;
   do
   {
-    int32_t bytes_to_read  = transmission_rate - total_bytes_received;
+    uint32_t bytes_to_read  = transmission_rate - total_bytes_received;
     int32_t bytes_received = recv(socket_descriptor, carriage, bytes_to_read, 0);
     if (bytes_received < 0)
     {
@@ -330,10 +334,9 @@ int32_t receive_request(Connection *item, const int32_t transmission_rate)
   if (no_more_data)
   {
     item->request[item->read_data + 1] = '\0'; /* *carriage = '\0*/
-    //printf("%s\n",item->request);
     item->state = Handling;
+      //printf("Incomming request: \n%s\n", item->request);
   }
-  //printf("Incomming request: \n%s\n", item->request);
 
   return 0;
 }
@@ -382,7 +385,7 @@ int32_t receive_request_blocking(Connection *item)
   return 0;
 }
 
-int32_t send_response(Connection *item, int32_t transmission_rate)
+int32_t send_response(Connection *item, uint32_t transmission_rate)
 {
   item->state = Sending;
   if(item->header_sent == 0)
@@ -390,6 +393,11 @@ int32_t send_response(Connection *item, int32_t transmission_rate)
     if (send_header(item, transmission_rate) == -1)
     {
       return -1;
+    }
+
+    if (item->header_sent == 0)
+    {
+      return 0;
     }
   }
 
@@ -405,12 +413,12 @@ int32_t send_response(Connection *item, int32_t transmission_rate)
     return -1;
   }
 
-  if (item->wrote_data > item->response_size)
+  /*if (item->wrote_data > item->response_size)
   {
     printf("Error in read data: Preventing loop\n");
     item->state = Sent;
   }
-  else if (item->wrote_data != item->response_size)
+  else*/ if (item->wrote_data != item->response_size)
   {
     return 0;
   }
@@ -491,7 +499,6 @@ exit_handle:
   item->state = Sending;
   return;
 }
-
 
 int32_t get_resource_data(Connection *item)
 {
@@ -584,7 +591,7 @@ int verify_connection(ConnectionManager *manager,
   return 0;
 }
 
-int32_t send_header(Connection *item, int32_t transmission_rate)
+int32_t send_header_blocking(Connection *item)
 {
   int32_t socket_descriptor = item->socket_descriptor;
 
@@ -609,7 +616,48 @@ int32_t send_header(Connection *item, int32_t transmission_rate)
   return 0;
 }
 
-int32_t send_resource(Connection *item, int32_t transmission_rate)
+int32_t send_header(Connection *item, uint32_t transmission_rate)
+{
+  int32_t socket_descriptor = item->socket_descriptor;
+
+  uint32_t total_bytes_sent  = 0;
+  uint32_t header_size       = strlen(item->header);
+  if ( (header_size - item->wrote_data) < transmission_rate )
+  {
+    transmission_rate = (header_size - item->wrote_data);
+  }
+  char *carriage            = item->header + item->wrote_data;
+  while(total_bytes_sent != transmission_rate &&
+        total_bytes_sent != header_size )
+  {
+    int32_t bytes_to_sent = transmission_rate - total_bytes_sent;
+    int32_t bytes_sent = send(socket_descriptor, carriage, bytes_to_sent, MSG_NOSIGNAL);
+    if (bytes_sent == -1)
+    {
+      if (errno == EAGAIN ||
+          errno == EWOULDBLOCK )
+      {
+        break;
+      }
+      perror( "Error in send" );
+      return -1;
+    }
+
+    carriage         += bytes_sent;
+    total_bytes_sent += bytes_sent;
+    item->wrote_data += bytes_sent;
+  }
+
+  if (item->wrote_data == header_size)
+  {
+    item->header_sent = 1;
+    item->wrote_data  = 0;
+  }
+
+  return 0;
+}
+
+int32_t send_resource(Connection *item, uint32_t transmission_rate)
 {
   int ret = 0;
   char *resource = malloc(sizeof(char)*(transmission_rate + 1));
@@ -620,7 +668,9 @@ int32_t send_resource(Connection *item, int32_t transmission_rate)
   int32_t bytes_sent = 0;
   fseek(item->resource_file, item->wrote_data, SEEK_SET);
 
-  bytes_read = fread(resource, sizeof(char), transmission_rate, item->resource_file);
+  bytes_read = fread(resource, sizeof(char),
+                     transmission_rate,
+                     item->resource_file);
 
   if ((bytes_read != -1) &&
       (bytes_read != 0 ))
@@ -629,7 +679,7 @@ int32_t send_resource(Connection *item, int32_t transmission_rate)
     {
       transmission_rate = bytes_read;
     }
-    int32_t total_byte_sent = 0;
+    uint32_t total_byte_sent = 0;
     char *carriage = resource;
 
     while (total_byte_sent != transmission_rate)
@@ -650,11 +700,7 @@ int32_t send_resource(Connection *item, int32_t transmission_rate)
       item->wrote_data += bytes_sent;
       total_byte_sent += bytes_sent;
 
-      if (bytes_sent != transmission_rate)
-      {
-        carriage += bytes_sent;
-        printf( "flag to see if sent bytes isn't transmission rate" );
-      }
+      carriage += bytes_sent;
     }
   }
 
