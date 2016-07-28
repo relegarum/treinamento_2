@@ -318,6 +318,15 @@ int32_t receive_request(Connection *item, const int32_t transmission_rate)
     carriage             += bytes_received; /*&buffer[total_bytes_received]*/
   } while((transmission_rate != total_bytes_received));
 
+  if(item->read_data > 4) /*\r\n\r\n*/
+  {
+    char *last_piece = (item->request + item->read_data - 4);
+    if (strncmp(last_piece, "\r\n\r\n", 4) == 0)
+    {
+      no_more_data = 1;
+    }
+  }
+
   if (no_more_data)
   {
     item->request[item->read_data + 1] = '\0'; /* *carriage = '\0*/
@@ -602,8 +611,11 @@ int32_t send_header(Connection *item, int32_t transmission_rate)
 
 int32_t send_resource(Connection *item, int32_t transmission_rate)
 {
+  int ret = 0;
+  char *resource = malloc(sizeof(char)*(transmission_rate + 1));
+
   int32_t socket_descriptor = item->socket_descriptor;
-  char resource[transmission_rate + 1];
+
   int32_t bytes_read = 0;
   int32_t bytes_sent = 0;
   fseek(item->resource_file, item->wrote_data, SEEK_SET);
@@ -618,11 +630,12 @@ int32_t send_resource(Connection *item, int32_t transmission_rate)
       transmission_rate = bytes_read;
     }
     int32_t total_byte_sent = 0;
+    char *carriage = resource;
 
     while (total_byte_sent != transmission_rate)
     {
       int32_t bytes_to_sent = transmission_rate - total_byte_sent;
-      bytes_sent = send(socket_descriptor, resource, bytes_to_sent, MSG_NOSIGNAL);
+      bytes_sent = send(socket_descriptor, carriage, bytes_to_sent, MSG_NOSIGNAL);
       if (bytes_sent == -1)
       {
         if (errno == EAGAIN ||
@@ -631,18 +644,23 @@ int32_t send_resource(Connection *item, int32_t transmission_rate)
           break;
         }
         perror( "Error in send" );
-        return -1;
+        ret = -1;
+        goto exit_send_resource;
       }
       item->wrote_data += bytes_sent;
       total_byte_sent += bytes_sent;
 
       if (bytes_sent != transmission_rate)
       {
+        carriage += bytes_sent;
         printf( "flag to see if sent bytes isn't transmission rate" );
       }
     }
   }
-  return 0;
+
+exit_send_resource:
+  free(resource);
+  return ret;
 }
 
 void create_default_response_files(char *path,
@@ -788,4 +806,81 @@ int8_t verify_file_path(char *path, char *resource, char *fullpath)
 clear_full_path:
   memset(fullpath, '\0', PATH_MAX);
   return 1;
+}
+
+
+int setup_listening_connection(char* port, int32_t* listening_socket)
+{
+  int success = 0;
+  struct addrinfo *servinfo = NULL;
+  const int32_t    true_value      = 1;
+  struct addrinfo  hints;
+
+
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family   = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_flags    = AI_PASSIVE;
+
+  if ((success = getaddrinfo(NULL, port, &hints, &servinfo)) != 0)
+  {
+    printf("Error in getaddrinfo: %s\n", gai_strerror(success));
+    success = -1;
+    goto exit_setup_listening;
+  }
+
+  struct addrinfo *serverinfo_ptr    = NULL;
+  // Get valid socket to listen
+  for (serverinfo_ptr = servinfo;
+       serverinfo_ptr != NULL;
+       serverinfo_ptr = serverinfo_ptr->ai_next)
+  {
+    if ((*listening_socket = socket(serverinfo_ptr->ai_family,
+                                   serverinfo_ptr->ai_socktype,
+                                   serverinfo_ptr->ai_protocol)) == -1)
+    {
+      perror("Server socket\n");
+      continue;
+    }
+
+    if ((success = setsockopt(*listening_socket,
+                              SOL_SOCKET,
+                              SO_REUSEADDR,
+                              &true_value,
+                              sizeof(true_value))) == -1)
+    {
+      perror("setsockopt");
+      success = -1;
+      goto exit_setup_listening;
+    }
+
+    if (bind(*listening_socket,
+             serverinfo_ptr->ai_addr,
+             serverinfo_ptr->ai_addrlen) == -1)
+    {
+      close(*listening_socket);
+      perror("server bind");
+      continue;
+    }
+
+    break;
+  }
+
+  if (serverinfo_ptr == NULL)
+  {
+    printf("Failed to bind\n");
+    success = -1;
+    goto exit_setup_listening;
+  }
+
+exit_setup_listening:
+
+  if (servinfo != NULL )
+  {
+    freeaddrinfo(servinfo);
+    servinfo       = NULL;
+    serverinfo_ptr = NULL;
+  }
+
+  return 0;
 }

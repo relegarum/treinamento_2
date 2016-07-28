@@ -68,6 +68,8 @@ void create_default_response_files(char *path,
                                    FILE **unauthorized_file,
                                    FILE **wrong_version_file );
 
+int setup_listening_connection(char* port, int32_t* listening_socket);
+
 void clean_default_files();
 
 FILE *bad_request_file;

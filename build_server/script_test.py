@@ -19,7 +19,8 @@ def download_file(file_url, fileout_name, i):
   print('Download start ---> '+ str(i)+ ' - ' + fileout_name)
   os.system('wget -nc  ' + file_url + ' -O arquivos_download/' 
     + fileout_name + "_" + str(i) )
-  print('#### Download end ---> '+ str(i) +' - '+ fileout_name + " ")  
+  print('#### Download end ---> '+ str(i) +' - '+ fileout_name + " ") 
+  os.system('cmp ' + fileout_name  + ' arquivos_download/' + fileout_name + '_' + str(i)) 
 #os.system('curl -s --url 10.4.3.1:8080/teste_4gb.iso -o teste_4gb_ini.iso')
 for i in range(0,20):
   print("-----------------------------------------------------")
