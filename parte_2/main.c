@@ -25,6 +25,7 @@
 #include <signal.h>
 #include <time.h>
 #include <limits.h>
+#include <dirent.h>
 
 #include <syslog.h>
 #include <sys/types.h>
@@ -62,12 +63,19 @@ int32_t handle_arguments(int argc, char **argv, char **port, char **path, int32_
   int32_t port_value = atoi(argv[index_of_port]);
   if( port_value < min_valid_port || port_value > max_valid_port )
   {
-    printf(" invalid value for port: %d", port_value );
+    printf(" invalid value for port: %d\n Please usea por between 1024 and 65535\n", port_value );
     return -1;
   }
 
   *port = argv[index_of_port];
   *path = argv[index_of_path];
+
+  DIR *dir = opendir(*path);
+  if (dir == NULL)
+  {
+    printf(" invalid path! Please use a valid path!\n");
+    return -1;
+  }
 
   if (argc < 4)
   {
