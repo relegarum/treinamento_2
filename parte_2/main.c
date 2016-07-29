@@ -25,6 +25,7 @@
 #include <signal.h>
 #include <time.h>
 #include <limits.h>
+#include <dirent.h>
 
 #include <syslog.h>
 #include <sys/types.h>
@@ -68,6 +69,13 @@ int32_t handle_arguments(int argc, char **argv, char **port, char **path, int32_
 
   *port = argv[index_of_port];
   *path = argv[index_of_path];
+
+  DIR *dir = opendir(*path);
+  if (dir == NULL)
+  {
+    printf("Path not found! Please pass a valid path!");
+    return -1;
+  }
 
   if (argc < 4)
   {
