@@ -39,8 +39,6 @@
 #include "../utils/connection_item.h"
 #include "../utils/http_utils.h"
 
-//#include "../utils/test_suit.h"
-
 #define MAX_TIMEOUT 9999
 
 ConnectionManager* manager_ptr = NULL;
@@ -217,7 +215,7 @@ int main(int argc, char **argv)
     if ((ret == -1) || FD_ISSET(listening_sock_description, &except_fds) )
     {
       perror("select error");
-      success = -1; /* Change this number */
+      success = -1;
       goto exit;
     }
 
@@ -255,7 +253,6 @@ int main(int argc, char **argv)
       if (ptr->state == Sent)
       {
         Connection *next = ptr->next_ptr;
-        //printf("Socket = %d closed\n\n", ptr->socket_descriptor);
         close(ptr->socket_descriptor);
         FD_CLR(ptr->socket_descriptor, &master);
         remove_connection_in_list(&manager, ptr);

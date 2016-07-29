@@ -21,6 +21,7 @@
 #define MAX_REQUEST_MASK_SIZE 23 /* GET %s HTTP/1.0\r\n\r\n */
 #define MAX_MIME_SIZE         128
 #define UNKNOWN_MIME_SIZE     24
+#define END_OF_HEADER_SIZE    4
 
 const char *RequestMsgMask      = "GET %s HTTP/1.0\r\n\r\n";
 const char *HeaderBadRequest    = "HTTP/1.0 400 Bad Request\r\n\r\n";
@@ -36,6 +37,7 @@ const char *ServerStr           = "Server: Aker\r\n";
 const char *IndexStr            = "/index.html";
 const char *HTTP10Str           = "HTTP/1.0";
 const char *HTTP11Str           = "HTTP/1.1";
+const char *EndOfHeader         = "\r\n\r\n";
 
 const char *HtmlBadRequestFileName   = "BadRequest.html";
 const char *HtmlNotFoundFileName     = "NotFound.html";
@@ -254,8 +256,8 @@ int32_t download_file(int socket_descriptor,
 
 int32_t extract_content(char *http_response, char *content, int32_t content_length)
 {
-  char *pointer    = strstr( http_response, "\r\n\r\n");
-  char *contentPtr = pointer + 4; /*strlen( \r\n\r\n )*/
+  char *pointer    = strstr( http_response, EndOfHeader);
+  char *contentPtr = pointer + END_OF_HEADER_SIZE; /*strlen( \r\n\r\n )*/
   strncpy( content, contentPtr, content_length );
 
   return 0;
@@ -278,8 +280,8 @@ int32_t handle_header(int socket_descriptor, int32_t *header_length, int32_t *co
     return -1;
   }
 
-  char *pointer    = strstr( header_slice, "\r\n\r\n");
-  char *contentPtr = pointer + 4; /*strlen( \r\n\r\n )*/
+  char *pointer    = strstr( header_slice, EndOfHeader);
+  char *contentPtr = pointer + END_OF_HEADER_SIZE; /*strlen( \r\n\r\n )*/
   *header_length   = (contentPtr - header_slice);
   *content_size    = get_response_size( header_slice );
 
@@ -325,10 +327,10 @@ int32_t receive_request(Connection *item, const uint32_t transmission_rate)
     carriage             += bytes_received; /*&buffer[total_bytes_received]*/
   } while((transmission_rate != total_bytes_received));
 
-  if(item->read_data > 4) /*\r\n\r\n*/
+  if(item->read_data > END_OF_HEADER_SIZE) /*\r\n\r\n*/
   {
-    char *last_piece = (item->request + item->read_data - 4);
-    if (strncmp(last_piece, "\r\n\r\n", 4) == 0)
+    char *last_piece = (item->request + item->read_data - END_OF_HEADER_SIZE);
+    if (strncmp(last_piece, EndOfHeader, END_OF_HEADER_SIZE) == 0)
     {
       no_more_data = 1;
     }
@@ -338,7 +340,6 @@ int32_t receive_request(Connection *item, const uint32_t transmission_rate)
   {
     item->request[item->read_data + 1] = '\0'; /* *carriage = '\0*/
     item->state = Handling;
-      //printf("Incomming request: \n%s\n", item->request);
   }
 
   return 0;
@@ -416,12 +417,7 @@ int32_t send_response(Connection *item, uint32_t transmission_rate)
     return -1;
   }
 
-  /*if (item->wrote_data > item->response_size)
-  {
-    printf("Error in read data: Preventing loop\n");
-    item->state = Sent;
-  }
-  else*/ if (item->wrote_data != item->response_size)
+  if (item->wrote_data != item->response_size)
   {
     return 0;
   }
