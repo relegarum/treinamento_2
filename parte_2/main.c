@@ -214,6 +214,8 @@ int main(int argc, char **argv)
   timeout.tv_sec = MAX_TIMEOUT;
   timeout.tv_usec = 0;
 
+  time_t begin;
+  time_t end;
   while (1)
   {
     read_fds   = master;
@@ -232,6 +234,7 @@ int main(int argc, char **argv)
       continue;
     }
 
+    time(&begin);
     Connection *ptr = manager.head;
     while (ptr != NULL)
     {
@@ -276,7 +279,12 @@ int main(int argc, char **argv)
         ptr = ptr->next_ptr;
       }
     }
+    time(&end);
 
+    if (begin != end)
+    {
+      continue;
+    }
 
     if (timeout.tv_sec == MAX_TIMEOUT - 1)
     {

@@ -417,7 +417,6 @@ int32_t send_response(Connection *item, uint32_t transmission_rate)
 
 void handle_request(Connection *item, char *path)
 {
-  item->state = Handling;
   char operation[OPERATION_SIZE];
   char resource[MAX_RESOURCE_SIZE];
   char protocol[PROTOCOL_SIZE];
@@ -634,7 +633,20 @@ int32_t send_header(Connection *item, uint32_t transmission_rate)
 int32_t send_resource(Connection *item, uint32_t transmission_rate)
 {
   int ret = 0;
-  char *resource = malloc(sizeof(char)*(transmission_rate + 1));
+  int32_t left_to_transmit = item->response_size - item->wrote_data;
+  uint32_t chunk_size = 0;
+  char *resource;
+  if ((left_to_transmit > 0 ) &&
+      (transmission_rate < (uint32_t)left_to_transmit))
+  {
+    resource = malloc(sizeof(char)*(transmission_rate + 1));
+    chunk_size = transmission_rate;
+  }
+  else
+  {
+    resource = malloc(sizeof(char)*(left_to_transmit + 1));;
+    chunk_size = left_to_transmit;
+  }
 
   int32_t socket_descriptor = item->socket_descriptor;
 
@@ -643,21 +655,21 @@ int32_t send_resource(Connection *item, uint32_t transmission_rate)
   fseek(item->resource_file, item->wrote_data, SEEK_SET);
 
   bytes_read = fread(resource, sizeof(char),
-                     transmission_rate,
+                     chunk_size,
                      item->resource_file);
 
   if (bytes_read > 0)
   {
-    if ((uint32_t)bytes_read < transmission_rate)
+    if ((uint32_t)bytes_read < chunk_size)
     {
       transmission_rate = bytes_read;
     }
     uint32_t total_byte_sent = 0;
     char *carriage = resource;
 
-    while (total_byte_sent != transmission_rate)
+    while (total_byte_sent != chunk_size)
     {
-      int32_t bytes_to_sent = transmission_rate - total_byte_sent;
+      int32_t bytes_to_sent = chunk_size - total_byte_sent;
       bytes_sent = send(socket_descriptor, carriage, bytes_to_sent, MSG_NOSIGNAL);
       if (bytes_sent == -1)
       {
