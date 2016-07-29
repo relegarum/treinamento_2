@@ -383,7 +383,7 @@ int32_t receive_request_blocking(Connection *item)
   memset( item->request, '\0', total_bytes_received + 1);
   strncpy(item->request, buffer, total_bytes_received + 1);
   item->response_size = total_bytes_received;
-  item->state = Sending;
+  item->state = SendingHeader;
   //printf("Incomming request: \n%s\n", item->request);
 
   return 0;
@@ -391,19 +391,7 @@ int32_t receive_request_blocking(Connection *item)
 
 int32_t send_response(Connection *item, uint32_t transmission_rate)
 {
-  item->state = Sending;
-  if(item->header_sent == 0)
-  {
-    if (send_header(item, transmission_rate) == -1)
-    {
-      return -1;
-    }
-
-    if (item->header_sent == 0)
-    {
-      return 0;
-    }
-  }
+  item->state = SendingResource;
 
   if (item->resource_file == NULL)
   {
@@ -500,7 +488,7 @@ exit_handle:
   {
     setup_header(item, mime);
   }
-  item->state = Sending;
+  item->state = SendingHeader;
   return;
 }
 
@@ -636,7 +624,7 @@ int32_t send_header(Connection *item, uint32_t transmission_rate)
 
   if (item->wrote_data == header_size)
   {
-    item->header_sent = 1;
+    item->state = SendingResource;
     item->wrote_data  = 0;
   }
 

@@ -5,12 +5,13 @@
 
 enum ConnectionStates
 {
-  Closed    = -1,
-  Free      =  0,
-  Receiving =  1,
-  Sending   =  2,
-  Sent      =  3,
-  Handling  =  4
+  Closed            = -1,
+  Free              =  0,
+  Receiving         =  1,
+  SendingHeader     =  2,
+  SendingResource   =  3,
+  Sent              =  4,
+  Handling          =  5
 };
 
 typedef struct ConnectionStruct

@@ -224,7 +224,6 @@ int main(int argc, char **argv)
       continue;
     }
 
-
     Connection *ptr = manager.head;
     while (ptr != NULL)
     {
@@ -241,10 +240,16 @@ int main(int argc, char **argv)
 
       if (ptr->state == Handling )
       {
-        handle_request(ptr, path);
+        handle_request(ptr, path); 
       }
 
-      if (ptr->state == Sending &&
+      if ((ptr->state == SendingHeader) &&
+          (FD_ISSET(ptr->socket_descriptor, &write_fds)))
+      {
+        send_header(ptr, transmission_rate);
+      }
+
+      if (ptr->state == SendingResource &&
           (FD_ISSET(ptr->socket_descriptor, &write_fds)) )
       {
         send_response(ptr, transmission_rate);
