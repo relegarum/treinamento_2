@@ -1,7 +1,13 @@
 #ifndef CONNECTION_ITEM_H
 #define CONNECTION_ITEM_H
+
 #include <stdio.h>
 #include <stdint.h>
+
+#define END_OF_HEADER_SIZE    4
+
+extern const char *const EndOfHeader;
+extern const char *const RequestMsgMask;
 
 enum ConnectionStates
 {
@@ -33,8 +39,26 @@ typedef struct ConnectionStruct
 } Connection;
 
 void init_connection_item(Connection *item, int socket_descriptor);
-
 Connection *create_connection_item(int socket_descriptor);
+
+
+int32_t receive_request_blocking(Connection *item);
+int32_t receive_request(Connection *item, const uint32_t transmission_rate);
+void handle_request(Connection *item, char *path);
+int32_t send_response(Connection *item, uint32_t transmission_rate);
+int32_t send_header_blocking(Connection *item);
+int32_t send_header(Connection *item, uint32_t transmission_rate);
+int32_t send_resource(Connection *item, uint32_t transmission_rate);
+int32_t get_resource_data(Connection *item, char *file_name, char *mime);
+void setup_header(Connection *item, char *mime);
+
+
 void free_connection_item(Connection *item);
+
+FILE *bad_request_file;
+FILE *not_found_file;
+FILE *internal_error_file;
+FILE *unauthorized_file;
+FILE *wrong_version_file;
 
 #endif /* CONNECTION_ITEM_H*/

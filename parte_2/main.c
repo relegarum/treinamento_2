@@ -73,7 +73,7 @@ int32_t handle_arguments(int argc, char **argv, char **port, char **path, int32_
   DIR *dir = opendir(*path);
   if (dir == NULL)
   {
-    printf("Path not found! Please pass a valid path!");
+    printf(" invalid path! Please use a valid path!\n");
     return -1;
   }
 

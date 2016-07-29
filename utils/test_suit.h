@@ -5,7 +5,11 @@
  * "$Id: $"
 */
 
+#ifndef TEST_SUIT_H
+#define TEST_SUIT_H
 
 
 void test_connection_manager();
 void test_verify_path();
+
+#endif /*TEST_SUIT_H*/
