@@ -31,6 +31,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <arpa/inet.h>
@@ -211,17 +212,24 @@ int main(int argc, char **argv)
   greatest_file_desc = listening_sock_description;
 
   struct timeval timeout;
+  struct timeval lowest_time;
   timeout.tv_sec = MAX_TIMEOUT;
   timeout.tv_usec = 0;
 
-  time_t begin;
-  time_t end;
+  /*time_t begin;
+  time_t end;*/
   while (1)
   {
+
     read_fds   = master;
     write_fds  = master;
     except_fds = master;
-    int ret = select(greatest_file_desc + 1, &read_fds, &write_fds, &except_fds, &timeout) == -1;
+    int ret = select(greatest_file_desc + 1,
+                     &read_fds,
+                     &write_fds,
+                     &except_fds,
+                     &timeout);
+
     if ((ret == -1) || FD_ISSET(listening_sock_description, &except_fds) )
     {
       perror("select error");
@@ -229,12 +237,15 @@ int main(int argc, char **argv)
       goto exit;
     }
 
-    if (verify_connection(&manager, listening_sock_description, &read_fds, &master, &greatest_file_desc) == -1)
+    if (verify_connection(&manager,
+                          listening_sock_description,
+                          &read_fds,
+                          &master,
+                          &greatest_file_desc) == -1)
     {
       continue;
     }
 
-    time(&begin);
     Connection *ptr = manager.head;
     while (ptr != NULL)
     {
@@ -249,21 +260,33 @@ int main(int argc, char **argv)
         }
       }
 
-      if (ptr->state == Handling )
+      if (ptr->state == Handling)
       {
         handle_request(ptr, path); 
       }
 
-      if ((ptr->state == SendingHeader) &&
-          (FD_ISSET(ptr->socket_descriptor, &write_fds)))
+      if (FD_ISSET(ptr->socket_descriptor, &write_fds))
       {
-        send_header(ptr, transmission_rate);
+        if (ptr->state == SendingHeader)
+        {
+          send_header(ptr, transmission_rate);
+        }
+
+        if (ptr->state == SendingResource)
+        {
+          send_response(ptr, transmission_rate);
+        }
+
+        gettimeofday(&(ptr->last_connection_time), 0);
       }
 
-      if (ptr->state == SendingResource &&
-          (FD_ISSET(ptr->socket_descriptor, &write_fds)) )
+      if (ptr->partial_wrote + BUFSIZ > transmission_rate)
       {
-        send_response(ptr, transmission_rate);
+        if (timercmp(&(ptr->last_connection_time), &lowest_time, <) == 0)
+        {
+          lowest_time.tv_sec  = ptr->last_connection_time.tv_sec;
+          lowest_time.tv_usec = ptr->last_connection_time.tv_usec;
+        }
       }
 
       if (ptr->state == Sent)
@@ -279,20 +302,36 @@ int main(int argc, char **argv)
         ptr = ptr->next_ptr;
       }
     }
-    time(&end);
 
-    if (begin != end)
+    if (manager.size != 0)
     {
-      continue;
+      struct timeval now;
+      gettimeofday(&now, 0);
+
+      struct timeval one_second_later;
+      one_second_later.tv_sec = lowest_time.tv_sec + 1;
+      one_second_later.tv_usec = lowest_time.tv_usec;
+      if( timercmp(&now, &one_second_later, <) ==0)
+      {
+        struct timeval time_to_sleep;
+        timersub(&one_second_later, &now, &time_to_sleep);
+        usleep(time_to_sleep.tv_usec);
+      }
+
+    }
+    else
+    {
+      timeout.tv_sec  = 99999999999;
+      timeout.tv_usec = lowest_time.tv_usec;
     }
 
-    if (timeout.tv_sec == MAX_TIMEOUT - 1)
+    /*if (timeout.tv_sec == MAX_TIMEOUT - 1)
     {
       time_t teste = timeout.tv_usec;
       usleep(teste);
     }
     timeout.tv_sec = MAX_TIMEOUT;
-    timeout.tv_usec = 0;
+    timeout.tv_usec = 0;*/
   }
 
   success = 0;

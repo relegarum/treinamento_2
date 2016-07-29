@@ -45,29 +45,39 @@ const char * const RequestMsgMask = "GET %s HTTP/1.0\r\n\r\n";
 
 void init_connection_item(Connection *item, int socket_descriptor)
 {
-  item->socket_descriptor = socket_descriptor;
-  item->state              = Free;
-  item->header_sent        = 0;
-  item->error              = 0;
-  item->wrote_data         = 0;
-  item->read_data          = 0;
-  item->response_size      = 0;
-  item->resource_file      = NULL;
-  item->request            = NULL;
-  item->header             = NULL;
-  item->next_ptr           = NULL;
-  item->previous_ptr       = NULL;
+  item->socket_descriptor    = socket_descriptor;
+  item->state                = Free;
+  item->header_sent          = 0;
+  item->error                = 0;
+  item->wrote_data           = 0;
+  item->read_data            = 0;
+  item->response_size        = 0;
+  item->partial_wrote        = 0;
+  item->buffer[0]            = '\0';
+  item->resource_file        = NULL;
+  item->request              = NULL;
+  item->header               = NULL;
+  item->next_ptr             = NULL;
+  item->previous_ptr         = NULL;
+
+  item->last_connection_time.tv_sec = 0;
+  item->last_connection_time.tv_usec = 0;
 }
 
 void free_connection_item(Connection *item)
 {
-  item->state              = Closed;
-  item->header_sent        = 0;
-  item->read_data          = 0;
-  item->wrote_data         = 0;
-  item->response_size      = 0;
-  item->next_ptr           = NULL;
-  item->previous_ptr       = NULL;
+  item->state                = Closed;
+  item->header_sent          = 0;
+  item->read_data            = 0;
+  item->wrote_data           = 0;
+  item->partial_wrote        = 0;
+  item->response_size        = 0;
+  item->buffer[0]            = '\0';
+  item->next_ptr             = NULL;
+  item->previous_ptr         = NULL;
+
+  item->last_connection_time.tv_sec = 0;
+  item->last_connection_time.tv_usec = 0;
 
   if (item->socket_descriptor != -1)
   {
@@ -207,8 +217,6 @@ int32_t receive_request_blocking(Connection *item)
 
 int32_t send_response(Connection *item, uint32_t transmission_rate)
 {
-  item->state = SendingResource;
-
   if (item->resource_file == NULL)
   {
     item->state = Sent;
@@ -351,26 +359,27 @@ int32_t send_header_blocking(Connection *item)
     total_bytes_sent += bytes_sent;
   }
   while (total_bytes_sent != header_size);
-  item->header_sent = 1;
-
+  item->state = SendingResource;
   return 0;
 }
 
-int32_t send_header(Connection *item, uint32_t transmission_rate)
+int32_t send_header(Connection *item, const uint32_t transmission_rate)
 {
   int32_t socket_descriptor = item->socket_descriptor;
 
   uint32_t total_bytes_sent  = 0;
   uint32_t header_size       = strlen(item->header);
-  if ( (header_size - item->wrote_data) < transmission_rate )
+  uint32_t rate = (BUFSIZ > transmission_rate) ? BUFSIZ : transmission_rate;
+
+  if ( (header_size - item->wrote_data) < rate )
   {
-    transmission_rate = (header_size - item->wrote_data);
+    rate = (header_size - item->wrote_data);
   }
-  char *carriage            = item->header + item->wrote_data;
-  while(total_bytes_sent != transmission_rate &&
-        total_bytes_sent != header_size )
+  char *carriage = item->header + item->wrote_data;
+  while (total_bytes_sent != rate &&
+         total_bytes_sent != header_size )
   {
-    int32_t bytes_to_sent = transmission_rate - total_bytes_sent;
+    int32_t bytes_to_sent = rate - total_bytes_sent;
     int32_t bytes_sent = send(socket_descriptor, carriage, bytes_to_sent, MSG_NOSIGNAL);
     if (bytes_sent == -1)
     {
@@ -397,10 +406,10 @@ int32_t send_header(Connection *item, uint32_t transmission_rate)
   return 0;
 }
 
-int32_t send_resource(Connection *item, uint32_t transmission_rate)
+int32_t send_resource(Connection *item, const int32_t transmission_rate)
 {
   int ret = 0;
-  char *resource = malloc(sizeof(char)*(transmission_rate + 1));
+  uint32_t rate = (BUFSIZ < transmission_rate)? BUFSIZ: transmission_rate;
 
   int32_t socket_descriptor = item->socket_descriptor;
 
@@ -408,23 +417,27 @@ int32_t send_resource(Connection *item, uint32_t transmission_rate)
   int32_t bytes_sent = 0;
   fseek(item->resource_file, item->wrote_data, SEEK_SET);
 
-  bytes_read = fread(resource, sizeof(char),
-                     transmission_rate,
+  bytes_read = fread(item->buffer,
+                     sizeof(char),
+                     rate,
                      item->resource_file);
 
   if (bytes_read > 0)
   {
-    if ((uint32_t)bytes_read < transmission_rate)
+    if ((uint32_t)bytes_read < rate)
     {
-      transmission_rate = bytes_read;
+      rate = bytes_read;
     }
     uint32_t total_byte_sent = 0;
-    char *carriage = resource;
+    char *carriage = item->buffer;
 
-    while (total_byte_sent != transmission_rate)
+    while (total_byte_sent != rate)
     {
-      int32_t bytes_to_sent = transmission_rate - total_byte_sent;
-      bytes_sent = send(socket_descriptor, carriage, bytes_to_sent, MSG_NOSIGNAL);
+      int32_t bytes_to_sent = rate - total_byte_sent;
+      bytes_sent = send(socket_descriptor,
+                        carriage,
+                        bytes_to_sent,
+                        MSG_NOSIGNAL);
       if (bytes_sent == -1)
       {
         if (errno == EAGAIN ||
@@ -436,19 +449,17 @@ int32_t send_resource(Connection *item, uint32_t transmission_rate)
         ret = -1;
         goto exit_send_resource;
       }
-      item->wrote_data += bytes_sent;
-      total_byte_sent += bytes_sent;
+      item->partial_wrote += bytes_sent;
+      item->wrote_data    += bytes_sent;
+      total_byte_sent     += bytes_sent;
 
       carriage += bytes_sent;
     }
   }
 
 exit_send_resource:
-  free(resource);
   return ret;
 }
-
-
 
 void setup_header(Connection *item, char *mime)
 {
