@@ -63,7 +63,7 @@ int32_t handle_arguments(int argc, char **argv, char **port, char **path, int32_
   int32_t port_value = atoi(argv[index_of_port]);
   if( port_value < min_valid_port || port_value > max_valid_port )
   {
-    printf(" invalid value for port: %d", port_value );
+    printf(" invalid value for port: %d! Please use a port between - 1024 and 65535.", port_value );
     return -1;
   }
 
