@@ -269,7 +269,6 @@ int main(int argc, char **argv)
       }
     }
 
-
     if (timeout.tv_sec == MAX_TIMEOUT - 1)
     {
       time_t teste = timeout.tv_usec;

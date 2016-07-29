@@ -1,5 +1,6 @@
 #ifndef HTTP_UTILS_H
 #define HTTP_UTILS_H
+
 #include <stdint.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -47,20 +48,7 @@ int32_t download_file(int socket_descriptor, char *hostname, char *resource_requ
 
 int32_t extract_content(char *http_response, char* content,int32_t content_length);
 
-int32_t receive_request_blocking(Connection *item);
-int32_t receive_request(Connection *item, const uint32_t transmission_rate);
-
 int8_t verify_file_path(char *path, char *resourcec, char *fullpath);
-void handle_request(Connection *item, char *path);
-
-int32_t send_response(Connection *item, uint32_t transmission_rate);
-int32_t send_header_blocking(Connection *item);
-int32_t send_header(Connection *item, uint32_t transmission_rate);
-int32_t send_resource(Connection *item, uint32_t transmission_rate);
-
-int32_t get_file_mime(uint32_t full_path_size, char *full_path, char *mime);
-int32_t get_resource_data(Connection *item, char *file_name, char *mime);
-void setup_header(Connection *item, char *mime);
 
 int verify_connection(ConnectionManager *manager, int32_t listening_socket, fd_set *read_fds, fd_set *master, int *greatest_fds );
 
@@ -74,11 +62,5 @@ void create_default_response_files(char *path,
 int setup_listening_connection(char* port, int32_t* listening_socket);
 
 void clean_default_files();
-
-FILE *bad_request_file;
-FILE *not_found_file;
-FILE *internal_error_file;
-FILE *unauthorized_file;
-FILE *wrong_version_file;
 
 #endif // HTTP_UTILS_H
