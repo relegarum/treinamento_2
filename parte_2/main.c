@@ -80,7 +80,7 @@ int32_t handle_arguments(int argc, char **argv, char **port, char **path, int32_
   {
     char *end_ptr = "\0";
     *transmission_rate = strtol(argv[index_of_transmission_rate], &
-                               end_ptr, 10);
+                                end_ptr, 10);
     if (*transmission_rate <= 0)
     {
       *transmission_rate = BUFSIZ;
@@ -148,9 +148,9 @@ void handle_sigint(int signal_number)
 
 int main(int argc, char **argv)
 {
-  //setup_deamon();
+  /*setup_deamon();*/
   int32_t listening_sock_description = -1;
-  int32_t transmission_rate    = 0; // 1Mb/s
+  int32_t transmission_rate    = 0;
 
   char *port;
   char *path;
@@ -226,47 +226,47 @@ int main(int argc, char **argv)
       continue;
     }
 
+
+    Connection *ptr = manager.head;
+    while (ptr != NULL)
     {
-      Connection *ptr = manager.head;
-      while (ptr != NULL)
+      if ((ptr->state == Free ||
+           ptr->state == Receiving ) &&
+          FD_ISSET(ptr->socket_descriptor, &read_fds))
       {
-        if ((ptr->state == Free ||
-             ptr->state == Receiving ) &&
-            FD_ISSET(ptr->socket_descriptor, &read_fds))
+        if (receive_request(ptr, transmission_rate) == -1)
         {
-          if (receive_request(ptr, transmission_rate) == -1)
-          {
-            success = -1;
-            goto exit;
-          }
-        }
-
-        if (ptr->state == Handling )
-        {
-          handle_request(ptr, path);
-        }
-
-        if (ptr->state == Sending &&
-            (FD_ISSET(ptr->socket_descriptor, &write_fds)) )
-        {
-          send_response(ptr, transmission_rate);
-        }
-
-        if (ptr->state == Sent)
-        {
-          Connection *next = ptr->next_ptr;
-          //printf("Socket = %d closed\n\n", ptr->socket_descriptor);
-          close(ptr->socket_descriptor);
-          FD_CLR(ptr->socket_descriptor, &master);
-          remove_connection_in_list(&manager, ptr);
-          ptr = next;
-        }
-        else
-        {
-          ptr = ptr->next_ptr;
+          success = -1;
+          goto exit;
         }
       }
+
+      if (ptr->state == Handling )
+      {
+        handle_request(ptr, path);
+      }
+
+      if (ptr->state == Sending &&
+          (FD_ISSET(ptr->socket_descriptor, &write_fds)) )
+      {
+        send_response(ptr, transmission_rate);
+      }
+
+      if (ptr->state == Sent)
+      {
+        Connection *next = ptr->next_ptr;
+        //printf("Socket = %d closed\n\n", ptr->socket_descriptor);
+        close(ptr->socket_descriptor);
+        FD_CLR(ptr->socket_descriptor, &master);
+        remove_connection_in_list(&manager, ptr);
+        ptr = next;
+      }
+      else
+      {
+        ptr = ptr->next_ptr;
+      }
     }
+
 
     if (timeout.tv_sec == MAX_TIMEOUT - 1)
     {
@@ -278,6 +278,7 @@ int main(int argc, char **argv)
   }
 
   success = 0;
+
 exit:
 
   clean_default_files();

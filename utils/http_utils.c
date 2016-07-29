@@ -19,6 +19,8 @@
 #define MAX_RESOURCE_SIZE     50
 #define MAX_LONG_STR_SIZE     10 /* 4294967295 */
 #define MAX_REQUEST_MASK_SIZE 23 /* GET %s HTTP/1.0\r\n\r\n */
+#define MAX_MIME_SIZE         128
+#define UNKNOWN_MIME_SIZE     24
 
 const char *RequestMsgMask      = "GET %s HTTP/1.0\r\n\r\n";
 const char *HeaderBadRequest    = "HTTP/1.0 400 Bad Request\r\n\r\n";
@@ -28,7 +30,8 @@ const char *HeaderInternalError = "HTTP/1.0 500 Internal Server Error\r\n\r\n";
 const char *HeaderUnauthorized  = "HTTP/1.0 401 Unauthorized\r\n\r\n";
 const char *HeaderWrongVersion  = "HTTP/1.0 505 HTTP Version Not Supported\r\n\r\n";
 const char *ContentLenghtMask   = "Content-Length: %lld\r\n";
-const char *ContentTypeStr      = "Content-Type= application/octet-stream\r\n";
+const char *ContentTypeStr      = "Content-Type: %s\r\n";
+const char *UnknownTypeStr      = "application/octet-stream";
 const char *ServerStr           = "Server: Aker\r\n";
 const char *IndexStr            = "/index.html";
 const char *HTTP10Str           = "HTTP/1.0";
@@ -434,6 +437,7 @@ void handle_request(Connection *item, char *path)
   char operation[OPERATION_SIZE];
   char resource[MAX_RESOURCE_SIZE];
   char protocol[PROTOCOL_SIZE];
+  char mime[MAX_MIME_SIZE];
 
   memset(operation, '\0', OPERATION_SIZE);
   memset(resource,  '\0', MAX_RESOURCE_SIZE);
@@ -495,12 +499,16 @@ void handle_request(Connection *item, char *path)
   }
 
 exit_handle:
-  get_resource_data(item);
+  get_resource_data(item, file_name, mime);
+  if (item->error == 0)
+  {
+    setup_header(item, mime);
+  }
   item->state = Sending;
   return;
 }
 
-int32_t get_resource_data(Connection *item)
+int32_t get_resource_data(Connection *item, char *file_name, char *mime)
 {
   int32_t fd = fileno(item->resource_file);
   struct stat buffer;
@@ -508,37 +516,19 @@ int32_t get_resource_data(Connection *item)
   {
     item->header = strdup(HeaderInternalError);
     item->resource_file = NULL;
+    item->error = 1;
     return -1;
   }
   uint64_t size = buffer.st_size;
   item->response_size = size;
-
-  if (item->error == 1)
+  uint32_t file_name_size = strlen(file_name);
+  if ( file_name_size != 0)
   {
-    /* There is no need to setup header in error*/
-    return 0;
+    if (get_file_mime(file_name_size, file_name, mime) != 0)
+    {
+      strncpy(mime, UnknownTypeStr, UNKNOWN_MIME_SIZE);
+    }
   }
-
-  int32_t content_length_mask_size = strlen(ContentLenghtMask);
-  int32_t header_ok_size          = strlen(HeaderOk);
-  int32_t server_str_size         = strlen(ServerStr);
-  int32_t content_type_str_size   = strlen(ContentTypeStr);
-  int32_t header_mask_size        = header_ok_size +
-                                  server_str_size +
-                                  content_length_mask_size +
-                                  content_type_str_size +
-                                  3; /* \r\n\0 */
-
-  const int32_t max_Length_str_size = 50;
-  const int32_t header_size      = header_mask_size + max_Length_str_size + 3;
-  item->header     = malloc(sizeof(char) * (header_size));
-  char *headerMask = malloc(sizeof(char) * (header_mask_size)); // \r\n
-
-
-  snprintf(headerMask, header_mask_size, "%s%s%s%s\r\n", HeaderOk, ContentLenghtMask, ServerStr, ContentTypeStr);
-  snprintf(item->header, header_size, headerMask, size);
-  free(headerMask);
-
   return 0;
 }
 
@@ -672,10 +662,9 @@ int32_t send_resource(Connection *item, uint32_t transmission_rate)
                      transmission_rate,
                      item->resource_file);
 
-  if ((bytes_read != -1) &&
-      (bytes_read != 0 ))
+  if (bytes_read > 0)
   {
-    if (bytes_read < transmission_rate)
+    if ((uint32_t)bytes_read < transmission_rate)
     {
       transmission_rate = bytes_read;
     }
@@ -924,9 +913,56 @@ exit_setup_listening:
   if (servinfo != NULL )
   {
     freeaddrinfo(servinfo);
+
     servinfo       = NULL;
     serverinfo_ptr = NULL;
   }
 
   return 0;
+}
+
+int32_t get_file_mime(uint32_t full_path_size, char *full_path, char *mime)
+{
+  char *cmd_mask = "file -i %s";
+  int32_t total_size = strlen(cmd_mask) + full_path_size;
+
+  FILE* pipe = NULL;
+  char *cmd = malloc(sizeof(char)*(total_size));
+  {
+    snprintf(cmd, total_size, cmd_mask, full_path);
+    pipe = popen(cmd, "r");
+  }
+  free(cmd);
+
+  if (pipe == NULL)
+  {
+    return -1;
+  }
+
+  fscanf(pipe, "%*s %128[^\n]s\n", mime); /*MAX_MIME_SIZE*/
+  pclose(pipe);
+  return 0;
+}
+
+void setup_header(Connection *item, char *mime)
+{
+  int32_t content_length_mask_size = strlen(ContentLenghtMask);
+  int32_t header_ok_size          = strlen(HeaderOk);
+  int32_t server_str_size         = strlen(ServerStr);
+  int32_t content_type_str_size   = strlen(ContentTypeStr) + MAX_MIME_SIZE;
+  int32_t header_mask_size        = header_ok_size +
+                                  server_str_size +
+                                  content_length_mask_size +
+                                  content_type_str_size +
+                                  3; /* \r\n\0 */
+
+  const int32_t max_Length_str_size = 50;
+  const int32_t header_size      = header_mask_size + max_Length_str_size + 3;
+  item->header     = malloc(sizeof(char) * (header_size));
+  char *headerMask = malloc(sizeof(char) * (header_mask_size)); // \r\n
+
+
+  snprintf(headerMask, header_mask_size, "%s%s%s%s\r\n", HeaderOk, ContentLenghtMask, ServerStr, ContentTypeStr);
+  snprintf(item->header, header_size, headerMask, item->response_size, mime);
+  free(headerMask);
 }

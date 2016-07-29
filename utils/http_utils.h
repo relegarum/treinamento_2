@@ -58,7 +58,9 @@ int32_t send_header_blocking(Connection *item);
 int32_t send_header(Connection *item, uint32_t transmission_rate);
 int32_t send_resource(Connection *item, uint32_t transmission_rate);
 
-int32_t get_resource_data(Connection *item);
+int32_t get_file_mime(uint32_t full_path_size, char *full_path, char *mime);
+int32_t get_resource_data(Connection *item, char *file_name, char *mime);
+void setup_header(Connection *item, char *mime);
 
 int verify_connection(ConnectionManager *manager, int32_t listening_socket, fd_set *read_fds, fd_set *master, int *greatest_fds );
 
