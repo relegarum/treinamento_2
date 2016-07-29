@@ -690,10 +690,10 @@ void create_default_response_files(char *path,
                                    FILE **version_wrond_file)
 {
 
-  *not_found_file     = NULL;
-  *internal_error_file= NULL;
-  *unauthorized_file  = NULL;
-  *version_wrond_file = NULL;
+  *not_found_file      = NULL;
+  *internal_error_file = NULL;
+  *unauthorized_file   = NULL;
+  *version_wrond_file  = NULL;
 
   int32_t path_size = strlen(path);
   char *path_bad_request_file_name    = malloc(sizeof(char)*(strlen(HtmlBadRequestFileName)   + path_size + 2));
@@ -758,7 +758,6 @@ void clean_default_files()
 {
   if(bad_request_file != NULL)
   {
-    printf("bad req\n");
     fclose(bad_request_file);
     bad_request_file = NULL;
   }
@@ -788,7 +787,7 @@ void clean_default_files()
   }
 }
 
-int8_t verify_file_path(char *path, char *resource, char *fullpath)
+int8_t verify_file_path(char *path, char *resource, char *full_path)
 {
   int32_t resource_size = strlen(resource);
   if( strncmp(resource, "/", resource_size) == 0 ||
@@ -803,13 +802,23 @@ int8_t verify_file_path(char *path, char *resource, char *fullpath)
   const int32_t file_name_size = path_size + resource_size + 1;
   char real_path[PATH_MAX];
   memset(real_path, '\0', PATH_MAX);
-  snprintf(fullpath, file_name_size, "%s%s", path, resource);
-  if  (realpath(fullpath, real_path) != NULL )
+  snprintf(full_path, file_name_size, "%s%s", path, resource);
+  if  (realpath(full_path, real_path) != NULL )
   {
     if (strncmp(path, real_path, path_size) != 0)
     {
-      printf("Directory not found\n");
-      goto clear_full_path;
+      char work_directory[PATH_MAX];
+      if (getcwd(work_directory, PATH_MAX)!= NULL)
+      {
+        if (strncmp(work_directory, real_path, path_size) != 0)
+        {
+          goto clear_full_path;
+        }
+      }
+      else
+      {
+        goto clear_full_path;
+      }
     }
   }
   else
@@ -818,12 +827,12 @@ int8_t verify_file_path(char *path, char *resource, char *fullpath)
     goto clear_full_path;
   }
 
-  memset(fullpath, '\0', PATH_MAX);
-  strncpy(fullpath, real_path, strlen(real_path) + 1);
+  memset(full_path, '\0', PATH_MAX);
+  strncpy(full_path, real_path, strlen(real_path) + 1);
   return 0;
 
 clear_full_path:
-  memset(fullpath, '\0', PATH_MAX);
+  memset(full_path, '\0', PATH_MAX);
   return 1;
 }
 

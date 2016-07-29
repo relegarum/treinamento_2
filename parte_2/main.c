@@ -121,7 +121,6 @@ void setup_deamon()
   close(STDERR_FILENO);
 }
 
-
 void handle_sigint(int signal_number)
 {
   if (signal_number == SIGINT)
@@ -144,14 +143,15 @@ void handle_sigint(int signal_number)
   exit(1);
 }
 
+
 int main(int argc, char **argv)
 {
   /*setup_deamon();*/
   int32_t listening_sock_description = -1;
   int32_t transmission_rate    = 0;
 
-  char *port;
-  char *path;
+  char *port = NULL;
+  char *path = NULL;
 
   ConnectionManager manager = create_manager();
   manager_ptr = &manager;
