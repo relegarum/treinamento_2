@@ -1,4 +1,5 @@
 #include "http_utils.h"
+#include "file_utils.h"
 
 #include <limits.h>
 #include <stdio.h>
@@ -24,7 +25,6 @@ const char *HtmlWrongVersionFileName = "WrongVersion.html";
 
 #define HTML_HEADER(number, string) "HTTP/1.0 "#number" "#string"\r\n";
 #define HTML_ERROR(number, string) "<HTML><TITLE>"#number" "#string"</TITLE><BODY><H2>"#number" "#string"</H2></BODY></HTML>"
-
 
 void *get_in_addr(struct sockaddr *sa)
 {

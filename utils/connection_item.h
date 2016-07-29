@@ -7,9 +7,6 @@
 #define END_OF_HEADER_SIZE    4
 
 extern const char *const EndOfHeader;
-
-extern const char *const IndexStr;
-
 extern const char *const RequestMsgMask;
 
 enum ConnectionStates
@@ -55,9 +52,6 @@ int32_t send_resource(Connection *item, uint32_t transmission_rate);
 int32_t get_resource_data(Connection *item, char *file_name, char *mime);
 void setup_header(Connection *item, char *mime);
 
-
-int8_t verify_file_path(char *path, char *resource, char *full_path);
-int32_t get_file_mime(uint32_t full_path_size, char *full_path, char *mime);
 
 void free_connection_item(Connection *item);
 
