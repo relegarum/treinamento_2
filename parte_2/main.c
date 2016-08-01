@@ -252,7 +252,6 @@ int main(int argc, char **argv)
     lowest.tv_sec = INT_MAX;
     lowest.tv_usec = INT_MAX;
 
-    int8_t first = 0;
     Connection *ptr = manager.head;
     while (ptr != NULL)
     {
@@ -274,7 +273,7 @@ int main(int argc, char **argv)
             goto exit;
           }
 
-          if (ptr->partial_read + BUFSIZ > transmission_rate)
+          if (ptr->partial_read + BUFSIZ > (uint32_t )transmission_rate)
           {
             gettimeofday(&(ptr->last_connection_time), NULL);
             lowest.tv_sec = ptr->last_connection_time.tv_sec;
@@ -314,7 +313,7 @@ int main(int argc, char **argv)
             send_response(ptr, transmission_rate);
           }
 
-          if (ptr->partial_wrote + BUFSIZ > transmission_rate)
+          if (ptr->partial_wrote + BUFSIZ > (uint32_t )transmission_rate)
           {
             gettimeofday(&(ptr->last_connection_time), NULL);
             lowest.tv_sec = ptr->last_connection_time.tv_sec;
