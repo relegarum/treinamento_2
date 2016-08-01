@@ -239,8 +239,6 @@ int main(int argc, char **argv)
     }
 
     int8_t allinactive = 1;
-    lowest.tv_sec = INT_MAX;
-    lowest.tv_usec = INT_MAX;
 
     if (verify_connection(&manager,
                           listening_sock_description,
@@ -251,6 +249,10 @@ int main(int argc, char **argv)
       continue;
     }
 
+    lowest.tv_sec = INT_MAX;
+    lowest.tv_usec = INT_MAX;
+
+    int8_t first = 0;
     Connection *ptr = manager.head;
     while (ptr != NULL)
     {
@@ -258,22 +260,27 @@ int main(int argc, char **argv)
            ptr->state == Receiving ) &&
           FD_ISSET(ptr->socket_descriptor, &read_fds))
       {
-        allinactive &= 0;
-        if (receive_request(ptr, transmission_rate) == -1)
+        struct timeval next;
+        next.tv_sec = ptr->last_connection_time.tv_sec + 1;
+        next.tv_usec = ptr->last_connection_time.tv_usec;
+        struct timeval now;
+        gettimeofday(&now, NULL);
+        if (timercmp(&now, &next, >))
         {
-          success = -1;
-          goto exit;
-        }
-
-        if (ptr->partial_read > transmission_rate)
-        {
-          gettimeofday(&(ptr->last_connection_time), 0);
-          if (timercmp(&(ptr->last_connection_time), &lowest, <))
+          allinactive &= 0;
+          if (receive_request(ptr, transmission_rate) == -1)
           {
+            success = -1;
+            goto exit;
+          }
+
+          if (ptr->partial_read + BUFSIZ > transmission_rate)
+          {
+            gettimeofday(&(ptr->last_connection_time), NULL);
             lowest.tv_sec = ptr->last_connection_time.tv_sec;
             lowest.tv_usec = ptr->last_connection_time.tv_usec;
+            ptr->partial_read = 0;
           }
-          ptr->partial_read = 0;
         }
       }
 
@@ -284,7 +291,6 @@ int main(int argc, char **argv)
 
       if (FD_ISSET(ptr->socket_descriptor, &write_fds))
       {
-        allinactive &= 0;
         struct timeval next;
         next.tv_sec = ptr->last_connection_time.tv_sec + 1;
         next.tv_usec = ptr->last_connection_time.tv_usec;
@@ -292,6 +298,7 @@ int main(int argc, char **argv)
         gettimeofday(&now, NULL);
         if (timercmp(&now, &next, >))
         {
+          allinactive &= 0;
           if (ptr->state == SendingHeader)
           {
             send_header(ptr, transmission_rate);
@@ -307,17 +314,20 @@ int main(int argc, char **argv)
             send_response(ptr, transmission_rate);
           }
 
-          if (ptr->partial_wrote > transmission_rate)
+          if (ptr->partial_wrote + BUFSIZ > transmission_rate)
           {
-            gettimeofday(&(ptr->last_connection_time), 0);
-            if (timercmp(&(ptr->last_connection_time), &lowest, <))
-            {
-              lowest.tv_sec = ptr->last_connection_time.tv_sec;
-              lowest.tv_usec = ptr->last_connection_time.tv_usec;
-            }
+            gettimeofday(&(ptr->last_connection_time), NULL);
+            lowest.tv_sec = ptr->last_connection_time.tv_sec;
+            lowest.tv_usec = ptr->last_connection_time.tv_usec;
             ptr->partial_wrote = 0;
           }
         }
+      }
+
+      if (timercmp(&(ptr->last_connection_time), &lowest, <))
+      {
+        lowest.tv_sec = ptr->last_connection_time.tv_sec;
+        lowest.tv_usec = ptr->last_connection_time.tv_usec;
       }
 
       if (ptr->state == Sent)
