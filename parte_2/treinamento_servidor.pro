@@ -3,13 +3,19 @@ CONFIG += console
 CONFIG -= app_bundle
 CONFIG -= qt
 
+QMAKE_CXXFLAGS += -std=c++0x -pthread
+LIBS += -pthread
+
 SOURCES += main.c \
     ../utils/http_utils.c \
     ../utils/connection_item.c \
     ../utils/connection_manager.c \
     ../utils/test_suit.c \
     ../utils/thread_item.c \
-    ../utils/file_utils.c
+    ../utils/file_utils.c \
+    ../utils/request_list.c \
+    ../utils/request_manager.c \
+    ../utils/thread.c
 
 HEADERS += \
     ../utils/http_utils.h \
@@ -17,6 +23,9 @@ HEADERS += \
     ../utils/connection_manager.h \
     ../utils/test_suit.h \
     ../utils/thread_item.h \
-    ../utils/file_utils.h
+    ../utils/file_utils.h \
+    ../utils/request_list.h \
+    ../utils/request_manager.h \
+    ../utils/thread.h
 
 DISTFILES +=

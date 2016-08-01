@@ -48,8 +48,6 @@ int32_t download_file(int socket_descriptor, char *hostname, char *resource_requ
 
 int32_t extract_content(char *http_response, char* content,int32_t content_length);
 
-int8_t verify_file_path(char *path, char *resourcec, char *fullpath);
-
 int verify_connection(ConnectionManager *manager, int32_t listening_socket, fd_set *read_fds, fd_set *master, int *greatest_fds );
 
 void create_default_response_files(char *path,

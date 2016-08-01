@@ -212,7 +212,8 @@ int main(int argc, char **argv)
   greatest_file_desc = listening_sock_description;
 
   struct timeval timeout;
-  struct timeval lowest_time;
+  struct timeval lowest;
+  lowest.tv_sec = INT_MAX;
   timeout.tv_sec = MAX_TIMEOUT;
   timeout.tv_usec = 0;
 
@@ -237,6 +238,10 @@ int main(int argc, char **argv)
       goto exit;
     }
 
+    int8_t allinactive = 1;
+    lowest.tv_sec = INT_MAX;
+    lowest.tv_usec = INT_MAX;
+
     if (verify_connection(&manager,
                           listening_sock_description,
                           &read_fds,
@@ -253,10 +258,22 @@ int main(int argc, char **argv)
            ptr->state == Receiving ) &&
           FD_ISSET(ptr->socket_descriptor, &read_fds))
       {
+        allinactive &= 0;
         if (receive_request(ptr, transmission_rate) == -1)
         {
           success = -1;
           goto exit;
+        }
+
+        if (ptr->partial_read > transmission_rate)
+        {
+          gettimeofday(&(ptr->last_connection_time), 0);
+          if (timercmp(&(ptr->last_connection_time), &lowest, <))
+          {
+            lowest.tv_sec = ptr->last_connection_time.tv_sec;
+            lowest.tv_usec = ptr->last_connection_time.tv_usec;
+          }
+          ptr->partial_read = 0;
         }
       }
 
@@ -267,25 +284,39 @@ int main(int argc, char **argv)
 
       if (FD_ISSET(ptr->socket_descriptor, &write_fds))
       {
-        if (ptr->state == SendingHeader)
+        allinactive &= 0;
+        struct timeval next;
+        next.tv_sec = ptr->last_connection_time.tv_sec + 1;
+        next.tv_usec = ptr->last_connection_time.tv_usec;
+        struct timeval now;
+        gettimeofday(&now, NULL);
+        if (timercmp(&now, &next, >))
         {
-          send_header(ptr, transmission_rate);
-        }
+          if (ptr->state == SendingHeader)
+          {
+            send_header(ptr, transmission_rate);
+          }
 
-        if (ptr->state == SendingResource)
-        {
-          send_response(ptr, transmission_rate);
-        }
+          if (ptr->state == ReadingFromFile)
+          {
+            read_data_from_file(ptr, transmission_rate);
+          }
 
-        gettimeofday(&(ptr->last_connection_time), 0);
-      }
+          if (ptr->state == SendingResource)
+          {
+            send_response(ptr, transmission_rate);
+          }
 
-      if (ptr->partial_wrote + BUFSIZ > transmission_rate)
-      {
-        if (timercmp(&(ptr->last_connection_time), &lowest_time, <) == 0)
-        {
-          lowest_time.tv_sec  = ptr->last_connection_time.tv_sec;
-          lowest_time.tv_usec = ptr->last_connection_time.tv_usec;
+          if (ptr->partial_wrote > transmission_rate)
+          {
+            gettimeofday(&(ptr->last_connection_time), 0);
+            if (timercmp(&(ptr->last_connection_time), &lowest, <))
+            {
+              lowest.tv_sec = ptr->last_connection_time.tv_sec;
+              lowest.tv_usec = ptr->last_connection_time.tv_usec;
+            }
+            ptr->partial_wrote = 0;
+          }
         }
       }
 
@@ -305,33 +336,25 @@ int main(int argc, char **argv)
 
     if (manager.size != 0)
     {
+      if (((manager.size == 1) &&
+          (manager.head->state == Free)) ||
+          !allinactive)
+      {
+        continue;
+      }
       struct timeval now;
       gettimeofday(&now, 0);
 
       struct timeval one_second_later;
-      one_second_later.tv_sec = lowest_time.tv_sec + 1;
-      one_second_later.tv_usec = lowest_time.tv_usec;
-      if( timercmp(&now, &one_second_later, <) ==0)
+      one_second_later.tv_sec =  lowest.tv_sec + 1;
+      one_second_later.tv_usec = lowest.tv_usec;
+      if(timercmp(&one_second_later, &now, >))
       {
         struct timeval time_to_sleep;
         timersub(&one_second_later, &now, &time_to_sleep);
         usleep(time_to_sleep.tv_usec);
       }
-
     }
-    else
-    {
-      timeout.tv_sec  = 99999999999;
-      timeout.tv_usec = lowest_time.tv_usec;
-    }
-
-    /*if (timeout.tv_sec == MAX_TIMEOUT - 1)
-    {
-      time_t teste = timeout.tv_usec;
-      usleep(teste);
-    }
-    timeout.tv_sec = MAX_TIMEOUT;
-    timeout.tv_usec = 0;*/
   }
 
   success = 0;
