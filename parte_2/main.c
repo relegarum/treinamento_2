@@ -40,10 +40,15 @@
 #include "../utils/connection_manager.h"
 #include "../utils/connection_item.h"
 #include "../utils/http_utils.h"
+#include "../utils/request_manager.h"
+#include "../utils/thread.h"
+#include "../utils/test_suit.h"
 
 #define MAX_TIMEOUT 9999
+#define NUMBER_OF_THREADS 8
 
 ConnectionManager* manager_ptr = NULL;
+request_manager*   request_manager_pr = NULL;
 int32_t* listening_socket_ptr  = NULL;
 
 int32_t handle_arguments(int argc, char **argv, char **port, char **path, int32_t* transmission_rate)
@@ -77,6 +82,7 @@ int32_t handle_arguments(int argc, char **argv, char **port, char **path, int32_
     printf(" invalid path! Please use a valid path!\n");
     return -1;
   }
+  closedir(dir);
 
   if (argc < 4)
   {
@@ -137,11 +143,16 @@ void handle_sigint(int signal_number)
     clean_default_files();
 
   }
+
   if (manager_ptr != NULL)
   {
     free_list(manager_ptr);
   }
 
+  if (request_manager_pr != NULL)
+  {
+    free_request_list(request_manager_pr);
+  }
 
   if (( listening_socket_ptr != NULL ) &&
       (*listening_socket_ptr != -1))
@@ -152,9 +163,37 @@ void handle_sigint(int signal_number)
   exit(1);
 }
 
+void setup_threads(thread *thread_pool, const uint32_t pool_size, request_manager *manager)
+{
+  uint32_t index = 0;
+  for (;index < pool_size; ++index)
+  {
+    init_thread(&(thread_pool[index]), manager, index);
+  }
+}
+
+void start_threads(thread *thread_pool, const uint32_t pool_size)
+{
+  uint32_t index = 0;
+  for (;index < pool_size; ++index)
+  {
+    start_thread(&(thread_pool[index]));
+  }
+}
+
+/*void clean_threads(thread *thread_pool, const uint32_t pool_size)
+{
+  uint32_t index = 0;
+  for (;index < pool_size; ++index)
+  {
+    clean_thread(&(thread_pool[index]));
+  }
+}*/
+
 
 int main(int argc, char **argv)
 {
+
   /*setup_deamon();*/
   int32_t listening_sock_description = -1;
   int32_t transmission_rate    = 0;
@@ -164,6 +203,14 @@ int main(int argc, char **argv)
 
   ConnectionManager manager = create_manager();
   manager_ptr = &manager;
+
+  request_manager req_manager = create_request_manager();
+  request_manager_pr = &req_manager;
+
+  /*thread thread_pool[NUMBER_OF_THREADS];
+  setup_threads(thread_pool, NUMBER_OF_THREADS, &req_manager);
+  start_threads(thread_pool, NUMBER_OF_THREADS);*/
+
 
   int success = 0;
   if (handle_arguments(argc, argv, &port, &path, &transmission_rate) == -1)
@@ -303,13 +350,15 @@ int main(int argc, char **argv)
             send_header(ptr, transmission_rate);
           }
 
-          if (ptr->state == ReadingFromFile)
+          /*if (ptr->state == ReadingFromFile)
           {
             read_data_from_file(ptr, transmission_rate);
-          }
+          }*/
 
           if (ptr->state == SendingResource)
           {
+            /*request_list_node *node = create_request(ptr->resource_file, ptr->buffer, ptr->id, BUFSIZ, Read);
+            add_request_in_list(&req_manager, node);*/
             send_response(ptr, transmission_rate);
           }
 
@@ -369,9 +418,9 @@ int main(int argc, char **argv)
   success = 0;
 
 exit:
-
   clean_default_files();
 
+  free_request_list(&req_manager);
   free_list(&manager);
 
   if (listening_sock_description != -1)

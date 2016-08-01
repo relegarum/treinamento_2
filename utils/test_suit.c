@@ -12,6 +12,9 @@
 #include "http_utils.h"
 #include "connection_item.h"
 #include "connection_manager.h"
+#include "thread.h"
+#include "request_manager.h"
+#define NUMBER_OF_THREADS 8
 
 
 void test_connection_manager()
@@ -115,4 +118,47 @@ int32_t test_verify_path()
   }
 
   return 0;
+}
+
+
+
+void setup_threads_T(thread *thread_pool, const uint32_t pool_size, request_manager *manager)
+{
+  uint32_t index = 0;
+  for (;index < pool_size; ++index)
+  {
+    init_thread(&(thread_pool[index]), manager, index);
+    start_thread(&(thread_pool[index]));
+  }
+}
+
+/*void clean_threads_T(thread *thread_pool, const uint32_t pool_size)
+{
+  uint32_t index = 0;
+  for (;index < pool_size; ++index)
+  {
+    clean_thread(&(thread_pool[index]));
+  }
+}*/
+
+void test_threads()
+{
+  request_manager request_manager = create_request_manager();
+  thread thread_pool[NUMBER_OF_THREADS];
+  setup_threads_T(thread_pool, NUMBER_OF_THREADS, &request_manager);
+
+  sleep(5);
+
+  request_list_node *request = create_request(NULL, NULL, 255, 10, Read);
+  add_request_in_list(&request_manager, request);
+
+  request_list_node *request2 = create_request(NULL, NULL, 254, 11, Read);
+  add_request_in_list(&request_manager, request2);
+
+  request_list_node *request3 = create_request(NULL, NULL, 253, 12, Read);
+  add_request_in_list(&request_manager, request3);
+
+  sleep(5);
+
+  free_request_list(&request_manager);
 }

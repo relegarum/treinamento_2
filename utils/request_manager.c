@@ -6,6 +6,7 @@ request_manager create_request_manager()
 {
   request_manager manager;
   init_request_list(&manager);
+  printf("manager init");
   return manager;
 }
 
@@ -17,6 +18,7 @@ void init_request_list(request_manager *manager)
   manager->size = 0;
   pthread_mutex_init(&(manager->mutex), NULL);
   pthread_cond_init(&(manager->conditional_variable), NULL);
+  manager->exit = 0;
 }
 
 
@@ -58,8 +60,7 @@ void remove_request_in_list(request_manager *manager, request_list_node *item)
     return;
   }
 
-  pthread_mutex_lock(&(manager->mutex));
-  /*pthread_rwlock_wrlock(&(manager->lock));*/
+  --(manager->size);
   if ((item->previous_ptr != NULL) &&
       (item->next_ptr != NULL))
   {
@@ -69,9 +70,6 @@ void remove_request_in_list(request_manager *manager, request_list_node *item)
   else if ((item->previous_ptr == NULL) && /*Only Header case*/
            (item->next_ptr == NULL))
   {
-    /*destroy_node(item);
-    free(item);*/
-    /*item = NULL; Check this*/
     manager->head = NULL;
     manager->tail = NULL;
     return;
@@ -86,13 +84,6 @@ void remove_request_in_list(request_manager *manager, request_list_node *item)
     item->previous_ptr->next_ptr = NULL;
     manager->tail = item->previous_ptr;
   }
-
-  --(manager->size);
-  pthread_mutex_unlock(&(manager->mutex));
-  /*destroy_node(item);
-  free(item);*/
-  /*item = NULL; Check this*/
-  /*pthread_rwlock_unlock(&(manager->lock));*/
 }
 
 
@@ -100,11 +91,15 @@ void free_request_list(request_manager *manager)
 {
   while(manager->head != NULL)
   {
-    remove_request_in_list(manager, (manager->head));
+    request_list_node *head = (manager->head);
+    remove_request_in_list(manager, head);
+    destroy_node(head);
   }
 
   manager->head = NULL;
   manager->tail = NULL;
+  manager->exit = 1;
+  pthread_cond_broadcast(&(manager->conditional_variable));
   pthread_cond_destroy(&(manager->conditional_variable));
   pthread_mutex_destroy(&(manager->mutex));
 }

@@ -11,6 +11,7 @@ typedef struct request_manager_struct
   uint32_t           size;
   pthread_mutex_t    mutex;
   pthread_cond_t     conditional_variable;
+  int8_t             exit;
 }request_manager;
 
 request_manager create_request_manager();
