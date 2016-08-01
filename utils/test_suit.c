@@ -8,6 +8,7 @@
 #include <limits.h>
 #include <string.h>
 
+#include "file_utils.h"
 #include "http_utils.h"
 #include "connection_item.h"
 #include "connection_manager.h"
