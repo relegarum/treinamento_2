@@ -18,10 +18,10 @@ void test_connection_manager()
 {
   ConnectionManager manager;
   init_list(&manager);
-  Connection *item1 = create_connection_item(1);
-  Connection *item2 = create_connection_item(2);
-  Connection *item3 = create_connection_item(3);
-  Connection *item10 = create_connection_item(10);
+  Connection *item1 = create_connection_item(1, 1);
+  Connection *item2 = create_connection_item(2, 2);
+  Connection *item3 = create_connection_item(3, 3);
+  Connection *item10 = create_connection_item(10, 10);
 
   if (manager.size != 0)
   {

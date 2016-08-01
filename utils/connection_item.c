@@ -43,7 +43,7 @@ const char *HTTP11Str           = "HTTP/1.1";
 const char * const EndOfHeader    = "\r\n\r\n";
 const char * const RequestMsgMask = "GET %s HTTP/1.0\r\n\r\n";
 
-void init_connection_item(Connection *item, int socket_descriptor)
+void init_connection_item(Connection *item, int socket_descriptor, uint32_t id)
 {
   item->socket_descriptor    = socket_descriptor;
   item->state                = Free;
@@ -54,6 +54,7 @@ void init_connection_item(Connection *item, int socket_descriptor)
   item->response_size        = 0;
   item->partial_read         = 0;
   item->partial_wrote        = 0;
+  item->id                   = id;
   item->buffer[0]            = '\0';
   item->resource_file        = NULL;
   item->request              = NULL;
@@ -68,6 +69,7 @@ void init_connection_item(Connection *item, int socket_descriptor)
 void free_connection_item(Connection *item)
 {
   item->state                = Closed;
+  item->id                   = 0;
   item->header_sent          = 0;
   item->read_data            = 0;
   item->wrote_data           = 0;
@@ -109,10 +111,10 @@ void free_connection_item(Connection *item)
   }
 }
 
-Connection *create_connection_item(int socket_descriptor)
+Connection *create_connection_item(int socket_descriptor, uint32_t id)
 {
   Connection *item = malloc(sizeof(Connection));
-  init_connection_item(item, socket_descriptor);
+  init_connection_item(item, socket_descriptor, id);
   return item;
 }
 
@@ -526,4 +528,16 @@ int32_t read_data_from_file(Connection *item, const uint32_t rate)
                 sizeof(char),
                 rate,
                 item->resource_file);
+}
+
+void queue_request_to_read(Connection *item, 
+                           request_manager *manager, 
+                           const uint32_t rate)
+{
+  request_list_node *node = create_request(item->resource_file,
+                                           item->buffer,
+                                           item->id,
+                                           rate,
+                                           Read);
+  add_request_in_list(manager, node);
 }

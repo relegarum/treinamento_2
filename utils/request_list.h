@@ -14,6 +14,7 @@ typedef struct request_list_node_struct
 {
   FILE     *file;
   char     *buffer;
+  uint32_t id;
   uint8_t  operation;
   uint32_t data_size;
 
@@ -26,11 +27,13 @@ typedef struct request_list_node_struct
 void init_node(request_list_node *this,
                FILE *file,
                char* buffer,
+               uint32_t id,
                uint32_t data_size,
                uint8_t operation);
 
 request_list_node* create_request(FILE* file,
                                  char* buffer,
+                                 uint32_t id,
                                  uint32_t data_size,
                                  uint8_t operation);
 
