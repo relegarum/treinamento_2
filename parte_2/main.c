@@ -285,7 +285,7 @@ int main(int argc, char **argv)
 
       if (ptr->state == Handling)
       {
-        handle_request(ptr, path); 
+        handle_request(ptr, path);
       }
 
       if (FD_ISSET(ptr->socket_descriptor, &write_fds))
@@ -303,10 +303,10 @@ int main(int argc, char **argv)
             send_header(ptr, transmission_rate);
           }
 
-          if (ptr->state == ReadingFromFile)
+          /*if (ptr->state == ReadingFromFile)
           {
             read_data_from_file(ptr, transmission_rate);
-          }
+          }*/
 
           if (ptr->state == SendingResource)
           {
