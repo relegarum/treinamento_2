@@ -21,7 +21,7 @@
 #define MAX_ERROR_STR_SIZE    30
 #define PROTOCOL_SIZE         9
 #define OPERATION_SIZE        6
-#define MAX_RESOURCE_SIZE     50
+#define MAX_RESOURCE_SIZE     PATH_MAX
 #define MAX_LONG_STR_SIZE     10 /* 4294967295 */
 #define MAX_REQUEST_MASK_SIZE 23 /* GET %s HTTP/1.0\r\n\r\n */
 #define MAX_MIME_SIZE         128
@@ -258,7 +258,15 @@ void handle_request(Connection *item, char *path)
   item->resource_file = NULL;
   item->response_size = 0;
   /* OPERATION_SIZE, MAX_RESOURCE_SIZE, PROTOCOL_SIZE */
-  if (sscanf(request, "%5s %49s %8s\r\n", operation, resource, protocol) != 3)
+  if (sscanf(request, "%5s %4095s %8s\r\n", operation, resource, protocol) != 3)
+  {
+    item->header = strdup(HeaderBadRequest);
+    item->resource_file = bad_request_file;
+    item->error = 1;
+    goto exit_handle;
+  }
+
+  if (strncmp(operation, "GET", OPERATION_SIZE) != 0)
   {
     item->header = strdup(HeaderBadRequest);
     item->resource_file = bad_request_file;

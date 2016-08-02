@@ -57,14 +57,16 @@ int32_t handle_arguments(int argc, char **argv, char **port, char **path, int32_
 
   if (argc < 3)
   {
-    printf(" usage: %s port path transmission_rate\n", argv[index_of_executable]);
+    printf(" usage: %s port path transmission_rate\n",
+           argv[index_of_executable]);
     return -1;
   }
 
   int32_t port_value = atoi(argv[index_of_port]);
   if( port_value < min_valid_port || port_value > max_valid_port )
   {
-    printf(" invalid value for port: %d! Please use a port between - 1024 and 65535.\n", port_value );
+    printf(" invalid value for port: %d!\n"
+           " Please use a port between - 1024 and 65535.\n", port_value );
     return -1;
   }
 
@@ -77,9 +79,11 @@ int32_t handle_arguments(int argc, char **argv, char **port, char **path, int32_
     printf(" invalid path! Please use a valid path!\n");
     return -1;
   }
+  closedir(dir);
 
   if (argc < 4)
   {
+    printf(" Transmission Rate not passed, setting 8kbps as default\n");
     *transmission_rate = BUFSIZ;
     return 0;
   }
@@ -90,6 +94,7 @@ int32_t handle_arguments(int argc, char **argv, char **port, char **path, int32_
                                 end_ptr, 10);
     if (*transmission_rate <= 0)
     {
+      printf(" Transmission Rate unknown, setting 8kbps as default\n");
       *transmission_rate = BUFSIZ;
     }
   }
