@@ -22,11 +22,8 @@ const char *HtmlNotFoundFileName     = "NotFound.html";
 const char *HtmlInternalErrorName    = "InternalErrorName.html";
 const char *HtmlUnauthorizedFileName = "Unauthorized.html";
 const char *HtmlWrongVersionFileName = "WrongVersion.html";
-<<<<<<< HEAD
-uint32_t   g_id = 0;
-=======
 const char *HtmlNotImplemented       = "NotImplemented.html";
->>>>>>> master
+uint32_t   g_id = 0;
 
 #define HTML_HEADER(number, string) "HTTP/1.0 "#number" "#string"\r\n";
 #define HTML_ERROR(number, string) "<HTML><TITLE>"#number" "#string"</TITLE><BODY><H2>"#number" "#string"</H2></BODY></HTML>"
