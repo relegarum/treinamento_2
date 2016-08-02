@@ -327,6 +327,7 @@ void create_default_response_files(char *path,
                                    FILE **not_implemented_file)
 {
 
+  *bad_request_file     = NULL;
   *not_found_file       = NULL;
   *internal_error_file  = NULL;
   *unauthorized_file    = NULL;
@@ -334,12 +335,12 @@ void create_default_response_files(char *path,
   *not_implemented_file = NULL;
 
   int32_t path_size = strlen(path);
-  char *path_bad_request_file_name    = malloc(sizeof(char)*(strlen(HtmlBadRequestFileName)   + path_size + 2));
-  char *path_not_found_file_name      = malloc(sizeof(char)*(strlen(HtmlNotFoundFileName)     + path_size + 2));
-  char *path_internal_error_file_name = malloc(sizeof(char)*(strlen(HtmlInternalErrorName)    + path_size + 2));
-  char *path_unauthorized_file_name   = malloc(sizeof(char)*(strlen(HtmlUnauthorizedFileName) + path_size + 2));
-  char *path_wrong_file_name          = malloc(sizeof(char)*(strlen(HtmlWrongVersionFileName) + path_size + 2));
-  char *path_not_implemented          = malloc(sizeof(char)*(strlen(HtmlNotImplemented)       + path_size + 2));
+  char *path_bad_request_file_name     = malloc(sizeof(char)*(strlen(HtmlBadRequestFileName)   + path_size + 2));
+  char *path_not_found_file_name       = malloc(sizeof(char)*(strlen(HtmlNotFoundFileName)     + path_size + 2));
+  char *path_internal_error_file_name  = malloc(sizeof(char)*(strlen(HtmlInternalErrorName)    + path_size + 2));
+  char *path_unauthorized_file_name    = malloc(sizeof(char)*(strlen(HtmlUnauthorizedFileName) + path_size + 2));
+  char *path_wrong_file_name           = malloc(sizeof(char)*(strlen(HtmlWrongVersionFileName) + path_size + 2));
+  char *path_not_implemented_file_name = malloc(sizeof(char)*(strlen(HtmlNotImplemented)       + path_size + 2));
   {
     snprintf(path_bad_request_file_name, path_size + strlen(HtmlBadRequestFileName) + 2, "%s/%s", path, HtmlBadRequestFileName);
     *bad_request_file = fopen(path_bad_request_file_name, "w+b");
@@ -386,8 +387,8 @@ void create_default_response_files(char *path,
       fflush(*version_wrond_file);
     }
 
-    snprintf(path_not_implemented, path_size + strlen(HtmlNotImplemented) + 2, "%s/%s", path, HtmlNotImplemented);
-    *not_implemented_file = fopen(path_not_found_file_name, "w+b");
+    snprintf(path_not_implemented_file_name, path_size + strlen(HtmlNotImplemented) + 2, "%s/%s", path, HtmlNotImplemented);
+    *not_implemented_file = fopen(path_not_implemented_file_name, "w+b");
     if (*not_implemented_file != NULL)
     {
       char *html = HTML_ERROR(501, HTTP Not Implemented);
@@ -400,7 +401,7 @@ void create_default_response_files(char *path,
   free(path_internal_error_file_name);
   free(path_unauthorized_file_name);
   free(path_wrong_file_name);
-  free(path_not_implemented);
+  free(path_not_implemented_file_name);
 }
 
 void clean_default_files()

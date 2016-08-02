@@ -359,15 +359,8 @@ int main(int argc, char **argv)
             send_header(ptr, transmission_rate);
           }
 
-          if (ptr->state == ReadingFromFile)
-          {
-            read_data_from_file(ptr, transmission_rate);
-          }
-
           if (ptr->state == SendingResource)
           {
-            /*request_list_node *node = create_request(ptr->resource_file, ptr->buffer, ptr->id, BUFSIZ, Read);
-            add_request_in_list(&req_manager, node);*/
             send_response(ptr, transmission_rate);
           }
 
@@ -379,6 +372,17 @@ int main(int argc, char **argv)
             ptr->partial_wrote = 0;
           }
         }
+      }
+
+      if (ptr->state == ReadingFromFile)
+      {
+        queue_request_to_read(ptr, &req_manager, transmission_rate);
+        //read_data_from_file(ptr, transmission_rate);
+      }
+
+      if (ptr->state == WaitingFromIO)
+      {
+        receive_from_thread(ptr, transmission_rate);
       }
 
       if (timercmp(&(ptr->last_connection_time), &lowest, <))

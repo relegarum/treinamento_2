@@ -27,7 +27,8 @@ enum ConnectionStates
   Sent              =  4,
   Handling          =  5,
   ReadingFromFile   =  6,
-  WritingIntoFile   =  7
+  WritingIntoFile   =  7,
+  WaitingFromIO     =  8
 };
 
 typedef struct ConnectionStruct
@@ -43,6 +44,7 @@ typedef struct ConnectionStruct
   uint64_t        partial_read;
   uint32_t        partial_wrote;
   uint32_t        read_file_data;
+  int32_t         datagram_socket;
   char            buffer[BUFSIZ];
   char            *request;
   FILE            *resource_file;
@@ -71,7 +73,9 @@ int8_t is_active(Connection *item);
 
 void queue_request_to_read(Connection *item,
                            request_manager *manager,
-                           const uint32_t rate);
+                           const uint32_t transmission_rate);
+
+void receive_from_thread(Connection *item, const uint32_t transmission_rate);
 
 int32_t read_data_from_file(Connection *item, const uint32_t transmission_rate);
 void wrote_data_into_file(char *buffer,

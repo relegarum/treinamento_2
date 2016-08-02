@@ -6,6 +6,9 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
+#define MAX_SOCKET_NAME 17 /*13 + 4*/
+extern const char *const default_socket_name;
+
 enum Operation
 {
   None  = -1,
@@ -30,12 +33,13 @@ typedef struct request_list_node_struct
   struct request_list_node_struct *previous_ptr;
   struct request_list_node_struct *next_ptr;
 
-}request_list_node;;
+}request_list_node;
 
 void init_node(request_list_node *node,
                FILE *file,
                char* buffer,
                uint32_t id,
+               int32_t datagram_socket,
                uint32_t data_size,
                uint32_t offset,
                uint8_t operation);
@@ -43,6 +47,7 @@ void init_node(request_list_node *node,
 request_list_node* create_request(FILE* file,
                                  char* buffer,
                                  uint32_t id,
+                                 int32_t datagram_socket,
                                  uint32_t data_size,
                                  uint32_t offset,
                                  uint8_t operation);

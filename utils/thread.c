@@ -17,24 +17,16 @@ void start_thread(thread *this_thread)
   pthread_create(&(this_thread->pthread),
                  &attr,
                  &do_thread,
-                 (void *)(this_thread->manager));
+                 (void *)(this_thread));
   pthread_attr_destroy(&attr);
 }
-
-/*void clean_thread(thread *this)
-{
-  printf("cleaning %d", this->id);
-  pthread_exit(&(this->ret));
-}*/
 
 void *do_thread(void *arg)
 {
   pthread_detach(pthread_self());
-  request_manager *manager = (request_manager *)(arg);
-  /*int32_t id = pair->id;*/
-
-  //printf("Start thread %d\n", pair->id);
-  //printf("Manager %d\n", manager->size);
+  thread *this_thread = (thread *)(arg);
+  request_manager *manager = this_thread->manager;
+  int32_t         id       = this_thread->id;
 
   while (1)
   {
@@ -56,14 +48,25 @@ void *do_thread(void *arg)
     remove_request_in_list(manager, item);
     pthread_mutex_unlock(&(manager->mutex));
 
-    handle_request_item(item);
+    handle_request_item(item, id);
   }
 }
 
 
-void handle_request_item(request_list_node *item)
+void handle_request_item(request_list_node *item, int32_t id)
 {
-  printf(" Data Size: %d\n", item->data_size);
-  printf(" Operation: %d\n", item->operation);
-  printf(" Id: %d\n",      item->id);
+  fseek(item->file, item->offset, SEEK_SET);
+
+  int32_t read_data =  fread(item->buffer,
+                             sizeof(char),
+                             item->data_size,
+                             item->file);
+
+  /*printf("thread %d\n", id);*/
+  if (write(item->datagram_socket, item->buffer, read_data) < 0)
+  {
+    perror(" sendto error:");
+  }
+
+  destroy_node(item);
 }

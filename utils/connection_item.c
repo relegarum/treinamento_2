@@ -63,6 +63,7 @@ void init_connection_item(Connection *item, int socket_descriptor, uint32_t id)
   item->header               = NULL;
   item->next_ptr             = NULL;
   item->previous_ptr         = NULL;
+  item->datagram_socket      = -1;
 
   item->last_connection_time.tv_sec = 0;
   item->last_connection_time.tv_usec = 0;
@@ -111,6 +112,12 @@ void free_connection_item(Connection *item)
   {
     free(item->request);
     item->request = NULL;
+  }
+
+  if (item->datagram_socket != -1)
+  {
+    close(item->datagram_socket);
+    item->datagram_socket = -1;
   }
 }
 
@@ -271,8 +278,8 @@ void handle_request(Connection *item, char *path)
 
   if (strncmp(operation, "GET", OPERATION_SIZE) != 0)
   {
-    item->header = strdup(HeaderBadRequest);
-    item->resource_file = bad_request_file;
+    item->header = strdup(HeaderNotImplemented);
+    item->resource_file = not_implemented_file;
     item->error = 1;
     goto exit_handle;
   }
@@ -569,13 +576,50 @@ int32_t read_data_from_file(Connection *item, const uint32_t transmission_rate)
 
 void queue_request_to_read(Connection *item, 
                            request_manager *manager, 
-                           const uint32_t rate)
+                           const uint32_t transmission_rate)
 {
+  int socket_pair[2];
+  if (socketpair(AF_UNIX, SOCK_DGRAM, 0, socket_pair))
+  {
+    perror("socketPair");
+  }
+
+  /** Set connection as nonblock*/
+  if (fcntl(socket_pair[0], F_SETFL, fcntl(socket_pair[0], F_GETFL) | O_NONBLOCK) < 0)
+  {
+    perror("fcntl");
+  }
+  item->datagram_socket = socket_pair[0];
+
+
+  uint32_t rate = (BUFSIZ < transmission_rate)? BUFSIZ: transmission_rate;
   request_list_node *node = create_request(item->resource_file,
                                            item->buffer,
                                            item->id,
+                                           socket_pair[1],
                                            rate,
                                            item->wrote_data,
                                            Read);
   add_request_in_list(manager, node);
+  item->state = WaitingFromIO;
+}
+
+void receive_from_thread(Connection *item, const uint32_t transmission_rate)
+{
+  uint32_t rate = (BUFSIZ < transmission_rate)? BUFSIZ: transmission_rate;
+  int32_t read_data = read(item->datagram_socket, item->buffer, rate);
+  if (read_data < 0)
+  {
+    if (errno == EAGAIN ||
+        errno == EWOULDBLOCK)
+    {
+      return;
+    }
+
+    perror("read error");
+    return;
+  }
+  close(item->datagram_socket);
+  item->read_file_data = read_data;
+  item->state = SendingResource;
 }
