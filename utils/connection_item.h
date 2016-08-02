@@ -86,5 +86,6 @@ FILE *not_found_file;
 FILE *internal_error_file;
 FILE *unauthorized_file;
 FILE *wrong_version_file;
+FILE *not_implemented_file;
 
 #endif /* CONNECTION_ITEM_H*/

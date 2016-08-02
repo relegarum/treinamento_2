@@ -27,18 +27,19 @@
 #define MAX_MIME_SIZE         128
 #define UNKNOWN_MIME_SIZE     24
 
-const char *HeaderBadRequest    = "HTTP/1.0 400 Bad Request\r\n\r\n";
-const char *HeaderOk            = "HTTP/1.0 200 OK\r\n";
-const char *HeaderNotFound      = "HTTP/1.0 404 Not Found\r\n\r\n";
-const char *HeaderInternalError = "HTTP/1.0 500 Internal Server Error\r\n\r\n";
-const char *HeaderUnauthorized  = "HTTP/1.0 401 Unauthorized\r\n\r\n";
-const char *HeaderWrongVersion  = "HTTP/1.0 505 HTTP Version Not Supported\r\n\r\n";
-const char *ContentLenghtMask   = "Content-Length: %lld\r\n";
-const char *ContentTypeStr      = "Content-Type: %s\r\n";
-const char *UnknownTypeStr      = "application/octet-stream";
-const char *ServerStr           = "Server: Aker\r\n";
-const char *HTTP10Str           = "HTTP/1.0";
-const char *HTTP11Str           = "HTTP/1.1";
+const char *HeaderBadRequest     = "HTTP/1.0 400 Bad Request\r\n\r\n";
+const char *HeaderOk             = "HTTP/1.0 200 OK\r\n";
+const char *HeaderNotFound       = "HTTP/1.0 404 Not Found\r\n\r\n";
+const char *HeaderInternalError  = "HTTP/1.0 500 Internal Server Error\r\n\r\n";
+const char *HeaderUnauthorized   = "HTTP/1.0 401 Unauthorized\r\n\r\n";
+const char *HeaderWrongVersion   = "HTTP/1.0 505 HTTP Version Not Supported\r\n\r\n";
+const char *HeaderNotImplemented = "HTTP/1.0 501 HTTP Not Implemented\r\n\r\n";
+const char *ContentLenghtMask    = "Content-Length: %lld\r\n";
+const char *ContentTypeStr       = "Content-Type: %s\r\n";
+const char *UnknownTypeStr       = "application/octet-stream";
+const char *ServerStr            = "Server: Aker\r\n";
+const char *HTTP10Str            = "HTTP/1.0";
+const char *HTTP11Str            = "HTTP/1.1";
 
 const char * const EndOfHeader    = "\r\n\r\n";
 const char * const RequestMsgMask = "GET %s HTTP/1.0\r\n\r\n";
@@ -249,10 +250,12 @@ void handle_request(Connection *item, char *path)
   char resource[MAX_RESOURCE_SIZE];
   char protocol[PROTOCOL_SIZE];
   char mime[MAX_MIME_SIZE];
+  char file_name[PATH_MAX];
 
   memset(operation, '\0', OPERATION_SIZE);
   memset(resource,  '\0', MAX_RESOURCE_SIZE);
   memset(protocol,  '\0', PROTOCOL_SIZE);
+  memset(file_name,  '\0', PROTOCOL_SIZE);
 
   char *request = item->request;
   item->resource_file = NULL;
@@ -274,6 +277,14 @@ void handle_request(Connection *item, char *path)
     goto exit_handle;
   }
 
+  if (strncmp(operation, "GET", OPERATION_SIZE) != 0)
+  {
+    item->header = strdup(HeaderNotImplemented);
+    item->resource_file = not_implemented_file;
+    item->error = 1;
+    goto exit_handle;
+  }
+
   if (strncmp(protocol, HTTP10Str, PROTOCOL_SIZE) != 0 &&
      (strncmp(protocol, HTTP11Str, PROTOCOL_SIZE) != 0 ) )
   {
@@ -283,7 +294,14 @@ void handle_request(Connection *item, char *path)
     goto exit_handle;
   }
 
-  char file_name[PATH_MAX];
+  if (resource[0] != '/')
+  {
+    item->header = strdup(HeaderBadRequest);
+    item->resource_file = bad_request_file;
+    item->error = 1;
+    goto exit_handle;
+  }
+
   if (verify_file_path(path, resource, file_name) != 0)
   {
     item->header = strdup(HeaderNotFound);
@@ -339,14 +357,27 @@ int32_t get_resource_data(Connection *item, char *file_name, char *mime)
     item->error = 1;
     return -1;
   }
+
+  if (!S_ISREG(buffer.st_mode))
+  {
+    item->header = strdup(HeaderBadRequest);
+    fclose(item->resource_file);
+    item->resource_file = NULL;
+    item->error = 1;
+    return -1;
+  }
+
   uint64_t size = buffer.st_size;
   item->response_size = size;
-  uint32_t file_name_size = strlen(file_name);
-  if ( file_name_size != 0)
+  if (file_name != NULL)
   {
-    if (get_file_mime(file_name_size, file_name, mime) != 0)
+    uint32_t file_name_size = strlen(file_name);
+    if (file_name_size != 0)
     {
-      strncpy(mime, UnknownTypeStr, UNKNOWN_MIME_SIZE);
+      if (get_file_mime(file_name_size, file_name, mime) != 0)
+      {
+        strncpy(mime, UnknownTypeStr, UNKNOWN_MIME_SIZE);
+      }
     }
   }
   return 0;

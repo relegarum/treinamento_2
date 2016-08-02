@@ -55,7 +55,8 @@ void create_default_response_files(char *path,
                                    FILE **not_found_file,
                                    FILE **internal_error_file,
                                    FILE **unauthorized_file,
-                                   FILE **wrong_version_file );
+                                   FILE **wrong_version_file,
+                                   FILE **not_implemented_file);
 
 int setup_listening_connection(char* port, int32_t* listening_socket);
 

@@ -66,7 +66,8 @@ int32_t handle_arguments(int argc,
 
   if (argc < 3)
   {
-    printf(" usage: %s port path transmission_rate\n", argv[index_of_executable]);
+    printf(" usage: %s port path transmission_rate\n",
+           argv[index_of_executable]);
     return -1;
   }
 
@@ -91,7 +92,7 @@ int32_t handle_arguments(int argc,
 
   if (argc < 4)
   {
-    printf(" Transmission rate not passed, setting as 8Kbps!\n");
+    printf(" Transmission Rate not passed, setting 8kbps as default\n");
     *transmission_rate = BUFSIZ;
     return 0;
   }
@@ -102,7 +103,7 @@ int32_t handle_arguments(int argc,
                                 end_ptr, 10);
     if (*transmission_rate <= 0)
     {
-      printf(" Unknown transmission rate setting as 8Kbps!\n");
+      printf(" Transmission Rate unknown, setting 8kbps as default\n");
       *transmission_rate = BUFSIZ;
     }
   }
@@ -231,7 +232,8 @@ int main(int argc, char **argv)
                                 &not_found_file,
                                 &internal_error_file,
                                 &unauthorized_file,
-                                &wrong_version_file);
+                                &wrong_version_file,
+                                &not_implemented_file);
 
   const int32_t number_of_connections     = 200;
   if( setup_listening_connection(port, &listening_sock_description) == -1 )
@@ -339,7 +341,7 @@ int main(int argc, char **argv)
 
       if (ptr->state == Handling)
       {
-        handle_request(ptr, path); 
+        handle_request(ptr, path);
       }
 
       if (FD_ISSET(ptr->socket_descriptor, &write_fds))
@@ -357,10 +359,10 @@ int main(int argc, char **argv)
             send_header(ptr, transmission_rate);
           }
 
-          if (ptr->state == ReadingFromFile)
+          /*if (ptr->state == ReadingFromFile)
           {
             read_data_from_file(ptr, transmission_rate);
-          }
+          }*/
 
           if (ptr->state == SendingResource)
           {

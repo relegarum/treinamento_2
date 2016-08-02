@@ -22,7 +22,11 @@ const char *HtmlNotFoundFileName     = "NotFound.html";
 const char *HtmlInternalErrorName    = "InternalErrorName.html";
 const char *HtmlUnauthorizedFileName = "Unauthorized.html";
 const char *HtmlWrongVersionFileName = "WrongVersion.html";
+<<<<<<< HEAD
 uint32_t   g_id = 0;
+=======
+const char *HtmlNotImplemented       = "NotImplemented.html";
+>>>>>>> master
 
 #define HTML_HEADER(number, string) "HTTP/1.0 "#number" "#string"\r\n";
 #define HTML_ERROR(number, string) "<HTML><TITLE>"#number" "#string"</TITLE><BODY><H2>"#number" "#string"</H2></BODY></HTML>"
@@ -128,7 +132,7 @@ int32_t get_header(int socket_descriptor, char *resource_required, int32_t *head
     printf("Coudn't receive response\n");
     return 1;
   }
-  header_buffer[ bytes_received ] = '\0';
+  header_buffer[bytes_received] = '\0';
 
   *header_length  = bytes_received;
   *content_length = get_response_size(header_buffer);
@@ -142,7 +146,7 @@ void get_resource(char *uri, char *hostname, char *resource)
 {
   const char *protocol_suffix_end = "://";
   char *pointer = strstr(uri, protocol_suffix_end);
-  if( pointer != NULL )
+  if (pointer != NULL)
   {
     pointer += strlen( protocol_suffix_end );
     sscanf(pointer, "%[^/]%s", hostname, resource);
@@ -200,7 +204,7 @@ int32_t download_file(int socket_descriptor,
 
   int32_t header_length  = 0;
   int32_t content_length = 0;
-  if( handle_header( socket_descriptor, &header_length, &content_length ) == -1 )
+  if (handle_header( socket_descriptor, &header_length, &content_length ) == -1)
   {
     return -1;
   }
@@ -211,7 +215,7 @@ int32_t download_file(int socket_descriptor,
   if (bytes_received < header_length)
   {
     carriage = &header[ bytes_received ];
-    bytes_received = recv( socket_descriptor, carriage, ( header_length - bytes_received), 0 );
+    bytes_received = recv( socket_descriptor, carriage, ( header_length - bytes_received), 0);
   }
   free( header );
 
@@ -226,7 +230,7 @@ int32_t download_file(int socket_descriptor,
       write_bytes = bytes_received;
     }
 
-    fwrite( chunk, sizeof(char), write_bytes, output_file );
+    fwrite(chunk, sizeof(char), write_bytes, output_file);
   }
 
   free(chunk);
@@ -249,13 +253,13 @@ int32_t handle_header(int socket_descriptor, int32_t *header_length, int32_t *co
   const int32_t header_slice_size = 2048;
   char header_slice[header_slice_size];
   bytes_received = recv(socket_descriptor, header_slice, header_slice_size, MSG_PEEK );
-  if( bytes_received == 0 )
+  if (bytes_received == 0)
   {
     printf( "Nothing was received as a Header!" );
     return -1;
   }
 
-  if( handle_response_status( header_slice ) != 0 )
+  if (handle_response_status( header_slice ) != 0)
   {
     return -1;
   }
@@ -322,13 +326,15 @@ void create_default_response_files(char *path,
                                    FILE **not_found_file,
                                    FILE **internal_error_file,
                                    FILE **unauthorized_file,
-                                   FILE **version_wrond_file)
+                                   FILE **version_wrond_file,
+                                   FILE **not_implemented_file)
 {
 
-  *not_found_file      = NULL;
-  *internal_error_file = NULL;
-  *unauthorized_file   = NULL;
-  *version_wrond_file  = NULL;
+  *not_found_file       = NULL;
+  *internal_error_file  = NULL;
+  *unauthorized_file    = NULL;
+  *version_wrond_file   = NULL;
+  *not_implemented_file = NULL;
 
   int32_t path_size = strlen(path);
   char *path_bad_request_file_name    = malloc(sizeof(char)*(strlen(HtmlBadRequestFileName)   + path_size + 2));
@@ -336,6 +342,7 @@ void create_default_response_files(char *path,
   char *path_internal_error_file_name = malloc(sizeof(char)*(strlen(HtmlInternalErrorName)    + path_size + 2));
   char *path_unauthorized_file_name   = malloc(sizeof(char)*(strlen(HtmlUnauthorizedFileName) + path_size + 2));
   char *path_wrong_file_name          = malloc(sizeof(char)*(strlen(HtmlWrongVersionFileName) + path_size + 2));
+  char *path_not_implemented          = malloc(sizeof(char)*(strlen(HtmlNotImplemented)       + path_size + 2));
   {
     snprintf(path_bad_request_file_name, path_size + strlen(HtmlBadRequestFileName) + 2, "%s/%s", path, HtmlBadRequestFileName);
     *bad_request_file = fopen(path_bad_request_file_name, "w+b");
@@ -381,17 +388,27 @@ void create_default_response_files(char *path,
       fwrite(html, sizeof(char), strlen(html), *version_wrond_file);
       fflush(*version_wrond_file);
     }
+
+    snprintf(path_not_implemented, path_size + strlen(HtmlNotImplemented) + 2, "%s/%s", path, HtmlNotImplemented);
+    *not_implemented_file = fopen(path_not_found_file_name, "w+b");
+    if (*not_implemented_file != NULL)
+    {
+      char *html = HTML_ERROR(501, HTTP Not Implemented);
+      fwrite(html, sizeof(char), strlen(html), *not_implemented_file);
+      fflush(*not_implemented_file);
+    }
   }
   free(path_bad_request_file_name);
   free(path_not_found_file_name);
   free(path_internal_error_file_name);
   free(path_unauthorized_file_name);
   free(path_wrong_file_name);
+  free(path_not_implemented);
 }
 
 void clean_default_files()
 {
-  if(bad_request_file != NULL)
+  if (bad_request_file != NULL)
   {
     fclose(bad_request_file);
     bad_request_file = NULL;
@@ -403,22 +420,28 @@ void clean_default_files()
     not_found_file = NULL;
   }
 
-  if(internal_error_file != NULL)
+  if (internal_error_file != NULL)
   {
     fclose(internal_error_file);
     internal_error_file = NULL;
   }
 
-  if(unauthorized_file != NULL)
+  if (unauthorized_file != NULL)
   {
     fclose(unauthorized_file);
     unauthorized_file = NULL;
   }
 
-  if(wrong_version_file != NULL)
+  if (wrong_version_file != NULL)
   {
     fclose(wrong_version_file);
     wrong_version_file = NULL;
+  }
+
+  if (not_implemented_file != NULL)
+  {
+    fclose(not_implemented_file);
+    not_implemented_file = NULL;
   }
 }
 
