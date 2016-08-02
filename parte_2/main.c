@@ -359,10 +359,10 @@ int main(int argc, char **argv)
             send_header(ptr, transmission_rate);
           }
 
-          /*if (ptr->state == ReadingFromFile)
+          if (ptr->state == ReadingFromFile)
           {
             read_data_from_file(ptr, transmission_rate);
-          }*/
+          }
 
           if (ptr->state == SendingResource)
           {

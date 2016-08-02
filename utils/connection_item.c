@@ -277,14 +277,6 @@ void handle_request(Connection *item, char *path)
     goto exit_handle;
   }
 
-  if (strncmp(operation, "GET", OPERATION_SIZE) != 0)
-  {
-    item->header = strdup(HeaderNotImplemented);
-    item->resource_file = not_implemented_file;
-    item->error = 1;
-    goto exit_handle;
-  }
-
   if (strncmp(protocol, HTTP10Str, PROTOCOL_SIZE) != 0 &&
      (strncmp(protocol, HTTP11Str, PROTOCOL_SIZE) != 0 ) )
   {
