@@ -42,6 +42,7 @@ typedef struct ConnectionStruct
   uint64_t        response_size;
   uint64_t        partial_read;
   uint32_t        partial_wrote;
+  uint32_t        read_file_data;
   char            buffer[BUFSIZ];
   char            *request;
   FILE            *resource_file;
@@ -72,7 +73,7 @@ void queue_request_to_read(Connection *item,
                            request_manager *manager,
                            const uint32_t rate);
 
-int32_t read_data_from_file(Connection *item, const uint32_t rate);
+int32_t read_data_from_file(Connection *item, const uint32_t transmission_rate);
 void wrote_data_into_file(char *buffer,
                           const uint32_t rate,
                           FILE *resource_file);

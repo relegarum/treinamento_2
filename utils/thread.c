@@ -1,21 +1,24 @@
 #include "thread.h"
 #include <unistd.h>
 
-
-
-void init_thread(thread *this, request_manager *manager, int32_t id)
+void init_thread(thread *this_thread, request_manager *manager, int32_t id)
 {
-  this->manager = manager;
-  this->id = id;
-  this->ret = 0;
+  this_thread->manager = manager;
+  this_thread->id = id;
+  this_thread->ret = 0;
+  printf("Thread init: %d size:%d\n", id, this_thread->manager->size);
 }
 
-void start_thread(thread *this)
+void start_thread(thread *this_thread)
 {
-  pair_manager_id pair;
-  pair.manager =  this->manager;
-  pair.id =  this->id;
-  pthread_create(&(this->pthread), NULL, &do_thread, (void *)(&pair));
+  pthread_attr_t attr;
+  pthread_attr_init(&attr);
+  pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+  pthread_create(&(this_thread->pthread),
+                 &attr,
+                 &do_thread,
+                 (void *)(this_thread->manager));
+  pthread_attr_destroy(&attr);
 }
 
 /*void clean_thread(thread *this)
@@ -24,11 +27,14 @@ void start_thread(thread *this)
   pthread_exit(&(this->ret));
 }*/
 
-void *do_thread(void *this)
+void *do_thread(void *arg)
 {
-  pair_manager_id *pair = (pair_manager_id *)this;
-  request_manager *manager = pair->manager;
+  pthread_detach(pthread_self());
+  request_manager *manager = (request_manager *)(arg);
   /*int32_t id = pair->id;*/
+
+  //printf("Start thread %d\n", pair->id);
+  //printf("Manager %d\n", manager->size);
 
   while (1)
   {

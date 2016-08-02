@@ -149,13 +149,13 @@ void test_threads()
 
   sleep(5);
 
-  request_list_node *request = create_request(NULL, NULL, 255, 10, Read);
+  request_list_node *request = create_request(NULL, NULL, 255, 10, 0, Read);
   add_request_in_list(&request_manager, request);
 
-  request_list_node *request2 = create_request(NULL, NULL, 254, 11, Read);
+  request_list_node *request2 = create_request(NULL, NULL, 254, 11, 0, Read);
   add_request_in_list(&request_manager, request2);
 
-  request_list_node *request3 = create_request(NULL, NULL, 253, 12, Read);
+  request_list_node *request3 = create_request(NULL, NULL, 253, 12, 0, Read);
   add_request_in_list(&request_manager, request3);
 
   sleep(5);

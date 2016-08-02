@@ -21,7 +21,7 @@
 #define MAX_ERROR_STR_SIZE    30
 #define PROTOCOL_SIZE         9
 #define OPERATION_SIZE        6
-#define MAX_RESOURCE_SIZE     50
+#define MAX_RESOURCE_SIZE     PATH_MAX
 #define MAX_LONG_STR_SIZE     10 /* 4294967295 */
 #define MAX_REQUEST_MASK_SIZE 23 /* GET %s HTTP/1.0\r\n\r\n */
 #define MAX_MIME_SIZE         128
@@ -54,6 +54,7 @@ void init_connection_item(Connection *item, int socket_descriptor, uint32_t id)
   item->response_size        = 0;
   item->partial_read         = 0;
   item->partial_wrote        = 0;
+  item->read_file_data       = 0;
   item->id                   = id;
   item->buffer[0]            = '\0';
   item->resource_file        = NULL;
@@ -75,6 +76,7 @@ void free_connection_item(Connection *item)
   item->wrote_data           = 0;
   item->partial_read         = 0;
   item->partial_wrote        = 0;
+  item->read_file_data       = 0;
   item->response_size        = 0;
   item->buffer[0]            = '\0';
   item->next_ptr             = NULL;
@@ -223,11 +225,6 @@ int32_t receive_request_blocking(Connection *item)
 
 int32_t send_response(Connection *item, uint32_t transmission_rate)
 {
-  if (item->resource_file == NULL)
-  {
-    item->state = Sent;
-    return -1;
-  }
 
   if (send_resource(item, transmission_rate) == -1)
   {
@@ -237,6 +234,7 @@ int32_t send_response(Connection *item, uint32_t transmission_rate)
 
   if (item->wrote_data != item->response_size)
   {
+    item->state = ReadingFromFile;
     return 0;
   }
 
@@ -260,7 +258,15 @@ void handle_request(Connection *item, char *path)
   item->resource_file = NULL;
   item->response_size = 0;
   /* OPERATION_SIZE, MAX_RESOURCE_SIZE, PROTOCOL_SIZE */
-  if (sscanf(request, "%5s %49s %8s\r\n", operation, resource, protocol) != 3)
+  if (sscanf(request, "%5s %4095s %8s\r\n", operation, resource, protocol) != 3)
+  {
+    item->header = strdup(HeaderBadRequest);
+    item->resource_file = bad_request_file;
+    item->error = 1;
+    goto exit_handle;
+  }
+
+  if (strncmp(operation, "GET", OPERATION_SIZE) != 0)
   {
     item->header = strdup(HeaderBadRequest);
     item->resource_file = bad_request_file;
@@ -406,7 +412,7 @@ int32_t send_header(Connection *item, const uint32_t transmission_rate)
 
   if (item->wrote_data == header_size)
   {
-    item->state = SendingResource;
+    item->state = ReadingFromFile;
     item->wrote_data  = 0;
   }
 
@@ -417,13 +423,10 @@ int32_t send_resource(Connection *item, const int32_t transmission_rate)
 {
   int ret = 0;
   uint32_t rate = (BUFSIZ < transmission_rate)? BUFSIZ: transmission_rate;
-
-  int32_t socket_descriptor = item->socket_descriptor;
-
+  int32_t bytes_read = item->read_file_data;
 
   int32_t bytes_sent = 0;
-  int32_t bytes_read = read_data_from_file(item, rate);
-
+  int32_t socket_descriptor = item->socket_descriptor;
   if (bytes_read > 0)
   {
     if ((uint32_t)bytes_read < rate)
@@ -520,14 +523,25 @@ void wrote_data_into_file(char *buffer, const uint32_t rate, FILE *resource_file
 }
 
 
-int32_t read_data_from_file(Connection *item, const uint32_t rate)
+int32_t read_data_from_file(Connection *item, const uint32_t transmission_rate)
 {
+  if (item->resource_file == NULL)
+  {
+    item->state = Sent;
+    return -1;
+  }
+
+  uint32_t rate = (BUFSIZ < transmission_rate)? BUFSIZ: transmission_rate;
   fseek(item->resource_file, item->wrote_data, SEEK_SET);
 
-  return  fread(item->buffer,
-                sizeof(char),
-                rate,
-                item->resource_file);
+  int32_t read_data =  fread(item->buffer,
+                             sizeof(char),
+                             rate,
+                             item->resource_file);
+
+  item->read_file_data = read_data;
+  item->state = SendingResource;
+  return 0;
 }
 
 void queue_request_to_read(Connection *item, 
@@ -538,6 +552,7 @@ void queue_request_to_read(Connection *item,
                                            item->buffer,
                                            item->id,
                                            rate,
+                                           item->wrote_data,
                                            Read);
   add_request_in_list(manager, node);
 }

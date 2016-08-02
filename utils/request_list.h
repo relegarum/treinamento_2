@@ -20,6 +20,7 @@ typedef struct request_list_node_struct
   uint32_t id;
   uint8_t  operation;
   uint32_t data_size;
+  uint32_t offset;
 
   /*SOCK_DGRAM*/
   int    datagram_socket;
@@ -29,21 +30,23 @@ typedef struct request_list_node_struct
   struct request_list_node_struct *previous_ptr;
   struct request_list_node_struct *next_ptr;
 
-}request_list_node;
+}request_list_node;;
 
-void init_node(request_list_node *this,
+void init_node(request_list_node *node,
                FILE *file,
                char* buffer,
                uint32_t id,
                uint32_t data_size,
+               uint32_t offset,
                uint8_t operation);
 
 request_list_node* create_request(FILE* file,
                                  char* buffer,
                                  uint32_t id,
                                  uint32_t data_size,
+                                 uint32_t offset,
                                  uint8_t operation);
 
-void destroy_node(request_list_node *this);
+void destroy_node(request_list_node *node);
 
 #endif /* REQUEST_LIST_H */

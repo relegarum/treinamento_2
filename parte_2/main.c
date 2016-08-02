@@ -51,7 +51,11 @@ ConnectionManager* manager_ptr = NULL;
 request_manager*   request_manager_pr = NULL;
 int32_t* listening_socket_ptr  = NULL;
 
-int32_t handle_arguments(int argc, char **argv, char **port, char **path, int32_t* transmission_rate)
+int32_t handle_arguments(int argc,
+                         char **argv,
+                         char **port,
+                         char **path,
+                         int32_t* transmission_rate)
 {
   const int32_t index_of_executable         = 0;
   const int32_t index_of_port               = 1;
@@ -69,7 +73,8 @@ int32_t handle_arguments(int argc, char **argv, char **port, char **path, int32_
   int32_t port_value = atoi(argv[index_of_port]);
   if( port_value < min_valid_port || port_value > max_valid_port )
   {
-    printf(" invalid value for port: %d! Please use a port between - 1024 and 65535.\n", port_value );
+    printf(" invalid value for port: %d!\n"
+           " Please use a port between - 1024 and 65535.\n", port_value );
     return -1;
   }
 
@@ -86,6 +91,7 @@ int32_t handle_arguments(int argc, char **argv, char **port, char **path, int32_
 
   if (argc < 4)
   {
+    printf(" Transmission rate not passed, setting as 8Kbps!\n");
     *transmission_rate = BUFSIZ;
     return 0;
   }
@@ -96,6 +102,7 @@ int32_t handle_arguments(int argc, char **argv, char **port, char **path, int32_
                                 end_ptr, 10);
     if (*transmission_rate <= 0)
     {
+      printf(" Unknown transmission rate setting as 8Kbps!\n");
       *transmission_rate = BUFSIZ;
     }
   }
@@ -193,7 +200,7 @@ void start_threads(thread *thread_pool, const uint32_t pool_size)
 
 int main(int argc, char **argv)
 {
-
+  //sleep(15);
   /*setup_deamon();*/
   int32_t listening_sock_description = -1;
   int32_t transmission_rate    = 0;
@@ -207,9 +214,9 @@ int main(int argc, char **argv)
   request_manager req_manager = create_request_manager();
   request_manager_pr = &req_manager;
 
-  /*thread thread_pool[NUMBER_OF_THREADS];
+  thread thread_pool[NUMBER_OF_THREADS];
   setup_threads(thread_pool, NUMBER_OF_THREADS, &req_manager);
-  start_threads(thread_pool, NUMBER_OF_THREADS);*/
+  start_threads(thread_pool, NUMBER_OF_THREADS);
 
 
   int success = 0;
@@ -272,7 +279,7 @@ int main(int argc, char **argv)
     read_fds   = master;
     write_fds  = master;
     except_fds = master;
-    int ret = select(greatest_file_desc + 1,
+   int ret = select(greatest_file_desc + 1,
                      &read_fds,
                      &write_fds,
                      &except_fds,
@@ -350,10 +357,10 @@ int main(int argc, char **argv)
             send_header(ptr, transmission_rate);
           }
 
-          /*if (ptr->state == ReadingFromFile)
+          if (ptr->state == ReadingFromFile)
           {
             read_data_from_file(ptr, transmission_rate);
-          }*/
+          }
 
           if (ptr->state == SendingResource)
           {
@@ -420,7 +427,7 @@ int main(int argc, char **argv)
 exit:
   clean_default_files();
 
-  free_request_list(&req_manager);
+  /*free_request_list(&req_manager);*/
   free_list(&manager);
 
   if (listening_sock_description != -1)
