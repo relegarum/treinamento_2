@@ -339,6 +339,16 @@ int32_t get_resource_data(Connection *item, char *file_name, char *mime)
     item->error = 1;
     return -1;
   }
+
+  if (!S_ISREG(buffer.st_mode))
+  {
+    item->header = strdup(HeaderBadRequest);
+    fclose(item->resource_file);
+    item->resource_file = NULL;
+    item->error = 1;
+    return -1;
+  }
+
   uint64_t size = buffer.st_size;
   item->response_size = size;
   uint32_t file_name_size = strlen(file_name);
