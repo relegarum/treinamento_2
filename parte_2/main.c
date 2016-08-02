@@ -182,7 +182,8 @@ int main(int argc, char **argv)
                                 &not_found_file,
                                 &internal_error_file,
                                 &unauthorized_file,
-                                &wrong_version_file);
+                                &wrong_version_file,
+                                &not_implemented_file);
 
   const int32_t number_of_connections     = 200;
   if( setup_listening_connection(port, &listening_sock_description) == -1 )
