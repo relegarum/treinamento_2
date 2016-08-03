@@ -4,8 +4,6 @@
 #include <stdio.h>
 #include <unistd.h>
 
- const char *const default_socket_name = "tmp/server/%d";
-
 
 request_list_node* create_request(FILE *file,
                                  uint32_t id,

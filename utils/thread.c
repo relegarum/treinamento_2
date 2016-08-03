@@ -27,10 +27,6 @@ void *do_thread(void *arg)
 
   while (1)
   {
-    while(manager == NULL)
-    {
-      printf("manager is null");
-    }
     pthread_mutex_lock(&(manager->mutex));
     while (manager->size == 0)
     {
@@ -40,7 +36,7 @@ void *do_thread(void *arg)
         --(manager->number_of_threads);
         pthread_mutex_unlock(&(manager->mutex));
 
-        printf("\nthread dying: %d\n", id);
+        printf("Thread dying: %d\n", id);
         return NULL;
       }
     }
@@ -49,12 +45,12 @@ void *do_thread(void *arg)
     remove_request_in_list(manager, item);
     pthread_mutex_unlock(&(manager->mutex));
 
-    handle_request_item(item, id);
+    handle_request_item(item /*, id*/);
   }
 }
 
 
-void handle_request_item(request_list_node *item, int32_t id)
+void handle_request_item(request_list_node *item /*,int32_t id */)
 {
   fseek(item->file, item->offset, SEEK_SET);
 

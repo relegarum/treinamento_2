@@ -18,7 +18,7 @@ void init_thread(thread *this_thread, request_manager *manager, int32_t id);
 void start_thread(thread *this_thread);
 /*void clean_thread(thread *this);*/
 void *do_thread(void *arg);
-void handle_request_item(request_list_node *item, int32_t id);
+void handle_request_item(request_list_node *item);
 
 
 #endif /* THREAD_H*/

@@ -56,21 +56,31 @@ typedef struct ConnectionStruct
   struct ConnectionStruct *next_ptr;
 } Connection;
 
+/* Construtor and Destrutor */
 void init_connection_item(Connection *item, int socket_descriptor, uint32_t id);
 Connection *create_connection_item(int socket_descriptor, uint32_t id);
+void free_connection_item(Connection *item);
 
-
-int32_t receive_request_blocking(Connection *item);
-int32_t receive_request(Connection *item, const uint32_t transmission_rate);
-void handle_request(Connection *item, char *path);
-int32_t send_response(Connection *item, uint32_t transmission_rate);
+/* Blocking functions */
 int32_t send_header_blocking(Connection *item);
+int32_t receive_request_blocking(Connection *item);
+
+/* Receive function set */
+int32_t receive_request(Connection *item, const uint32_t transmission_rate);
+int32_t get_operation(Connection *item, const uint32_t transmission_rate);
+
+/* Send function set */
+int32_t send_response(Connection *item, uint32_t transmission_rate);
 int32_t send_header(Connection *item, const uint32_t transmission_rate);
 int32_t send_resource(Connection *item, const int32_t transmission_rate);
+
+/* Utils */
 int32_t get_resource_data(Connection *item, char *file_name, char *mime);
 void setup_header(Connection *item, char *mime);
 int8_t is_active(Connection *item);
+void handle_request(Connection *item, char *path);
 
+/* Thread related functions */
 void queue_request_to_read(Connection *item,
                            request_manager *manager,
                            const uint32_t transmission_rate);
@@ -82,8 +92,6 @@ void wrote_data_into_file(char *buffer,
                           const uint32_t rate,
                           FILE *resource_file);
 
-
-void free_connection_item(Connection *item);
 
 FILE *bad_request_file;
 FILE *not_found_file;

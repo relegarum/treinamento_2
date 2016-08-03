@@ -635,3 +635,52 @@ void receive_from_thread(Connection *item, const uint32_t transmission_rate)
   item->read_file_data = read_data;
   item->state = SendingResource;
 }
+
+int32_t get_operation(Connection *item, const uint32_t transmission_rate)
+{
+  int32_t bytes_received       = 0;
+  char header_slice[BUFSIZ];
+  bytes_received = recv(item->socket_descriptor, header_slice, BUFSIZ, MSG_PEEK );
+  if (bytes_received == 0)
+  {
+    printf( "Nothing was received as a Header!" );
+    return -1;
+  }
+
+  char operation[OPERATION_SIZE];
+  char resource[PATH_MAX];
+  char protocol[PROTOCOL_SIZE];
+  if (sscanf(header_slice, "%5s %4095s %8s\r\n", operation, resource, protocol) != 3)
+  {
+    item->header = strdup(HeaderBadRequest);
+    item->resource_file = bad_request_file;
+    item->error = 1;
+    return -1;
+  }
+
+  if (strncmp(operation, "GET", OPERATION_SIZE) == 0)
+  {
+    item->state = Receiving;
+  }
+  else if(strncmp(operation, "PUT", OPERATION_SIZE) == 0)
+  {
+    char *pointer    = strstr( header_slice, EndOfHeader);
+    char *contentPtr = pointer + END_OF_HEADER_SIZE; /*strlen( \r\n\r\n )*/
+    int32_t header_length   = (contentPtr - header_slice);
+    int32_t content_size    = get_response_size( header_slice );
+
+    printf("Header Length: %d\n", header_length);
+    printf("Content Size: %d\n", content_size);
+
+    return 0;
+  }
+  else
+  {
+    item->header = strdup(HeaderNotImplemented);
+    item->resource_file = not_implemented_file;
+    item->error = 1;
+    return -1;
+  }
+
+  return 0;
+}

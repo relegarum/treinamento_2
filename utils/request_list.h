@@ -6,8 +6,6 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#define MAX_SOCKET_NAME 17 /*13 + 4*/
-extern const char *const default_socket_name;
 
 enum Operation
 {

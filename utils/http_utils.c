@@ -26,7 +26,9 @@ const char *HtmlNotImplemented       = "NotImplemented.html";
 uint32_t   g_id = 0;
 
 #define HTML_HEADER(number, string) "HTTP/1.0 "#number" "#string"\r\n";
-#define HTML_ERROR(number, string) "<HTML><TITLE>"#number" "#string"</TITLE><BODY><H2>"#number" "#string"</H2></BODY></HTML>"
+#define HTML_ERROR(number, string) "<HTML><TITLE>"#number" "#string"</TITLE>\
+                                    <BODY><H2>"#number" "#string"</H2></BODY>\
+                                    </HTML>"
 
 void *get_in_addr(struct sockaddr *sa)
 {
@@ -169,7 +171,7 @@ int32_t download_file(int socket_descriptor,
                              "\r\n";
   uint32_t request_mask_length = strlen(request_mask);
   uint32_t request_total_size = request_mask_length +
-                               ((resource_required_length != 0) ? resource_required_length : strlen("/index.html"))+
+                               ((resource_required_length != 0) ? resource_required_length : strlen(IndexStr))+
                                hostname_length +
                                1;
 
@@ -177,7 +179,7 @@ int32_t download_file(int socket_descriptor,
   snprintf(request_msg,
            request_total_size,
            request_mask,
-           (resource_required_length != 0) ? resource_required : "/index.html",
+           (resource_required_length != 0) ? resource_required : IndexStr,
            hostname );
 
   printf( "%s\n", request_msg );

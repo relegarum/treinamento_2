@@ -40,15 +40,29 @@ int32_t get_header(int socket_descriptor,
                    int32_t *header_length,
                    int32_t *content_length);
 
-int32_t handle_header(int socket_descriptor, int32_t *header_length , int32_t *content_size);
+int32_t handle_header(int socket_descriptor,
+                      int32_t *header_length ,
+                      int32_t *content_size);
 
-void get_resource(char *uri, char *hostname, char *resource);
+void get_resource(char *uri,
+                  char *hostname,
+                  char *resource);
 
-int32_t download_file(int socket_descriptor, char *hostname, char *resource_required, int32_t transmission_rate, FILE* output_file);
+int32_t download_file(int socket_descriptor,
+                      char *hostname,
+                      char *resource_required,
+                      int32_t transmission_rate,
+                      FILE* output_file);
 
-int32_t extract_content(char *http_response, char* content,int32_t content_length);
+int32_t extract_content(char *http_response,
+                        char* content,
+                        int32_t content_length);
 
-int verify_connection(ConnectionManager *manager, int32_t listening_socket, fd_set *read_fds, fd_set *master, int *greatest_fds );
+int verify_connection(ConnectionManager *manager,
+                      int32_t listening_socket,
+                      fd_set *read_fds,
+                      fd_set *master,
+                      int *greatest_fds );
 
 void create_default_response_files(char *path,
                                    FILE **bad_request_file,

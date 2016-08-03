@@ -329,6 +329,7 @@ int main(int argc, char **argv)
            ptr->state == Receiving ) &&
           FD_ISSET(ptr->socket_descriptor, &read_fds))
       {
+        get_operation(ptr, transmission_rate);
         struct timeval next;
         next.tv_sec = ptr->last_connection_time.tv_sec + 1;
         next.tv_usec = ptr->last_connection_time.tv_usec;
