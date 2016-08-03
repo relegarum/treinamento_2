@@ -1,29 +1,26 @@
 #include "thread.h"
 #include <unistd.h>
+#include <stdlib.h>
 
 void init_thread(thread *this_thread, request_manager *manager, int32_t id)
 {
   this_thread->manager = manager;
   this_thread->id = id;
   this_thread->ret = 0;
+  ++(this_thread->manager->number_of_threads);
   printf("Thread init: %d size:%d\n", id, this_thread->manager->size);
 }
 
 void start_thread(thread *this_thread)
 {
-  pthread_attr_t attr;
-  pthread_attr_init(&attr);
-  pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
   pthread_create(&(this_thread->pthread),
-                 &attr,
+                 NULL,
                  &do_thread,
                  (void *)(this_thread));
-  pthread_attr_destroy(&attr);
 }
 
 void *do_thread(void *arg)
 {
-  pthread_detach(pthread_self());
   thread *this_thread = (thread *)(arg);
   request_manager *manager = this_thread->manager;
   int32_t         id       = this_thread->id;
@@ -38,9 +35,13 @@ void *do_thread(void *arg)
     while (manager->size == 0)
     {
       pthread_cond_wait(&(manager->conditional_variable), &(manager->mutex));
-      if (manager->exit)
+      if (manager->exit > 0)
       {
-        pthread_exit(NULL);
+        --(manager->number_of_threads);
+        pthread_mutex_unlock(&(manager->mutex));
+
+        printf("\nthread dying: %d\n", id);
+        return NULL;
       }
     }
 
@@ -62,6 +63,11 @@ void handle_request_item(request_list_node *item, int32_t id)
                              item->data_size,
                              item->file);
 
+  if (read_data <= 0)
+  {
+    perror("Read error");
+  }
+
   /*printf("thread %d\n", id);*/
   if (write(item->datagram_socket, item->buffer, read_data) < 0)
   {
@@ -69,4 +75,5 @@ void handle_request_item(request_list_node *item, int32_t id)
   }
 
   destroy_node(item);
+  free(item);
 }

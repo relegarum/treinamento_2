@@ -592,12 +592,11 @@ void queue_request_to_read(Connection *item,
   item->datagram_socket = socket_pair[0];
 
 
-  uint32_t rate = (BUFSIZ < transmission_rate)? BUFSIZ: transmission_rate;
+  uint32_t rate = (BUFSIZ < transmission_rate)? BUFSIZ - 1: transmission_rate;
   request_list_node *node = create_request(item->resource_file,
-                                           item->buffer,
                                            item->id,
                                            socket_pair[1],
-                                           rate,
+                                           rate + 1,
                                            item->wrote_data,
                                            Read);
   add_request_in_list(manager, node);
@@ -606,7 +605,8 @@ void queue_request_to_read(Connection *item,
 
 void receive_from_thread(Connection *item, const uint32_t transmission_rate)
 {
-  uint32_t rate = (BUFSIZ < transmission_rate)? BUFSIZ: transmission_rate;
+  /*char buffer[BUFSIZ];*/
+  uint32_t rate = (BUFSIZ - 1 < transmission_rate)? BUFSIZ - 1: transmission_rate;
   int32_t read_data = read(item->datagram_socket, item->buffer, rate);
   if (read_data < 0)
   {
@@ -617,9 +617,21 @@ void receive_from_thread(Connection *item, const uint32_t transmission_rate)
     }
 
     perror("read error");
+    if (errno == EBADF)
+    {
+      item->state = ReadingFromFile;
+    }
+    else
+    {
+      item->state = Sent;
+    }
     return;
   }
+
+
+  /*printf("%s", item->buffer);*/
   close(item->datagram_socket);
+  /*strncpy(item->buffer, buffer, rate);*/
   item->read_file_data = read_data;
   item->state = SendingResource;
 }

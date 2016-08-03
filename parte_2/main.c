@@ -144,8 +144,15 @@ void setup_deamon()
   close(STDERR_FILENO);
 }
 
+int terminate = 0;
+
 void handle_sigint(int signal_number)
 {
+  printf("signal free1");
+
+  terminate =1;
+
+  return;
   if (signal_number == SIGINT)
   {
     clean_default_files();
@@ -154,6 +161,7 @@ void handle_sigint(int signal_number)
 
   if (manager_ptr != NULL)
   {
+    printf("signal free");
     free_list(manager_ptr);
   }
 
@@ -277,6 +285,11 @@ int main(int argc, char **argv)
   time_t end;*/
   while (1)
   {
+    if (terminate)
+    {
+      printf("terminate");
+      goto exit;
+    }
 
     read_fds   = master;
     write_fds  = master;
@@ -290,6 +303,7 @@ int main(int argc, char **argv)
     if ((ret == -1) || FD_ISSET(listening_sock_description, &except_fds) )
     {
       perror("select error");
+      printf("teste");
       success = -1;
       goto exit;
     }
@@ -329,7 +343,7 @@ int main(int argc, char **argv)
             goto exit;
           }
 
-          if (ptr->partial_read + BUFSIZ > (uint32_t )transmission_rate)
+          if (ptr->partial_read  >= (uint32_t )transmission_rate)
           {
             gettimeofday(&(ptr->last_connection_time), NULL);
             lowest.tv_sec = ptr->last_connection_time.tv_sec;
@@ -364,7 +378,7 @@ int main(int argc, char **argv)
             send_response(ptr, transmission_rate);
           }
 
-          if (ptr->partial_wrote + BUFSIZ > (uint32_t )transmission_rate)
+          if (ptr->partial_wrote >= (uint32_t )transmission_rate)
           {
             gettimeofday(&(ptr->last_connection_time), NULL);
             lowest.tv_sec = ptr->last_connection_time.tv_sec;
@@ -433,8 +447,14 @@ int main(int argc, char **argv)
 exit:
   clean_default_files();
 
-  /*free_request_list(&req_manager);*/
+  free_request_list(&req_manager);
   free_list(&manager);
+
+  int index = 0;
+  for ( index = 0; index < NUMBER_OF_THREADS; ++index)
+  {
+    pthread_join(thread_pool[index].pthread, NULL);
+  }
 
   if (listening_sock_description != -1)
   {

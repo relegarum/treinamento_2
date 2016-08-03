@@ -19,7 +19,7 @@ enum Operation
 typedef struct request_list_node_struct
 {
   FILE     *file;
-  char     *buffer;
+  char     buffer[BUFSIZ];
   uint32_t id;
   uint8_t  operation;
   uint32_t data_size;
@@ -37,7 +37,6 @@ typedef struct request_list_node_struct
 
 void init_node(request_list_node *node,
                FILE *file,
-               char* buffer,
                uint32_t id,
                int32_t datagram_socket,
                uint32_t data_size,
@@ -45,7 +44,6 @@ void init_node(request_list_node *node,
                uint8_t operation);
 
 request_list_node* create_request(FILE* file,
-                                 char* buffer,
                                  uint32_t id,
                                  int32_t datagram_socket,
                                  uint32_t data_size,

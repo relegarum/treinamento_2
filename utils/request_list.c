@@ -8,7 +8,6 @@
 
 
 request_list_node* create_request(FILE *file,
-                                 char *buffer,
                                  uint32_t id,
                                  int32_t datagram_socket,
                                  uint32_t data_size,
@@ -19,7 +18,6 @@ request_list_node* create_request(FILE *file,
 
   init_node(node,
             file,
-            buffer,
             id,
             datagram_socket,
             data_size,
@@ -31,7 +29,6 @@ request_list_node* create_request(FILE *file,
 
 void init_node(request_list_node *node,
                FILE *file,
-               char *buffer,
                uint32_t id,
                int32_t datagram_socket,
                uint32_t data_size,
@@ -39,7 +36,7 @@ void init_node(request_list_node *node,
                uint8_t operation)
 {
   node->file      = file;
-  node->buffer    = buffer;
+  node->buffer[0] = '\0';
   node->id        = id;
   node->data_size = data_size;
   node->operation = operation;

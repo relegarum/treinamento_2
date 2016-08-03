@@ -18,6 +18,7 @@ void init_request_list(request_manager *manager)
   manager->size = 0;
   pthread_mutex_init(&(manager->mutex), NULL);
   pthread_cond_init(&(manager->conditional_variable), NULL);
+  manager->number_of_threads = 0;
   manager->exit = 0;
 }
 
@@ -39,7 +40,7 @@ void add_request_in_list(request_manager *manager, request_list_node *new_item)
   }
   ++(manager->size);
 
-  pthread_cond_signal(&(manager->conditional_variable));
+  pthread_cond_broadcast(&(manager->conditional_variable));
   pthread_mutex_unlock(&(manager->mutex));
   /*pthread_rwlock_unlock(&(manager->lock));*/
 }
@@ -99,7 +100,20 @@ void free_request_list(request_manager *manager)
   manager->head = NULL;
   manager->tail = NULL;
   manager->exit = 1;
-  pthread_cond_broadcast(&(manager->conditional_variable));
+
+  printf("\n ****signal to threads***.\n");
+  while (manager->number_of_threads > 0)
+  {
+    pthread_cond_broadcast(&(manager->conditional_variable));
+    usleep(100);
+  }
+
+  /*while(manager->number_of_threads > 0)
+  {
+    printf("\n----------waitin\n");
+    usleep(100);
+  }*/
+
   pthread_cond_destroy(&(manager->conditional_variable));
   pthread_mutex_destroy(&(manager->mutex));
 }
