@@ -16,6 +16,7 @@
 #define MAX_REQUEST_SIZE      8000
 #define MAX_ERROR_STR_SIZE    30
 #define MAX_REQUEST_MASK_SIZE 23 /* GET %s HTTP/1.0\r\n\r\n */
+#define PROTOCOL_SIZE         9
 
 const char *HtmlBadRequestFileName   = "BadRequest.html";
 const char *HtmlNotFoundFileName     = "NotFound.html";
@@ -23,6 +24,9 @@ const char *HtmlInternalErrorName    = "InternalErrorName.html";
 const char *HtmlUnauthorizedFileName = "Unauthorized.html";
 const char *HtmlWrongVersionFileName = "WrongVersion.html";
 const char *HtmlNotImplemented       = "NotImplemented.html";
+const char *HTTP10Str                = "HTTP/1.0";
+const char *HTTP11Str                = "HTTP/1.1";
+
 uint32_t   g_id = 0;
 
 #define HTML_HEADER(number, string) "HTTP/1.0 "#number" "#string"\r\n";
@@ -296,10 +300,8 @@ int verify_connection(ConnectionManager *manager,
       add_connection_in_list(manager, item);
       FD_SET(new_socket_description, master);
 
-      /** Set connection as nonblock*/
-      if (fcntl(new_socket_description, F_SETFL, fcntl(new_socket_description, F_GETFL) | O_NONBLOCK) < 0)
+      if (set_socket_as_nonblocking(new_socket_description))
       {
-        perror("fcntl");
         return -1;
       }
 
@@ -518,6 +520,28 @@ exit_setup_listening:
 
     servinfo       = NULL;
     serverinfo_ptr = NULL;
+  }
+
+  return 0;
+}
+
+int32_t verify_protocol(char *protocol)
+{
+  if ((strncmp(protocol, HTTP10Str, PROTOCOL_SIZE) != 0) &&
+      (strncmp(protocol, HTTP11Str, PROTOCOL_SIZE) != 0) )
+  {
+    return -1;
+  }
+
+  return 0;
+}
+
+int32_t set_socket_as_nonblocking(int socket_descriptor)
+{
+  if (fcntl(socket_descriptor, F_SETFL, fcntl(socket_descriptor, F_GETFL) | O_NONBLOCK) < 0)
+  {
+    perror("fcntl");
+    return -1;
   }
 
   return 0;

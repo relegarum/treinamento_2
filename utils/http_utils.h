@@ -76,4 +76,8 @@ int setup_listening_connection(char* port, int32_t* listening_socket);
 
 void clean_default_files();
 
+int32_t verify_protocol(char * protocol);
+
+int32_t set_socket_as_nonblocking(int socket_descriptor);
+
 #endif // HTTP_UTILS_H

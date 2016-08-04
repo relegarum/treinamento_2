@@ -28,7 +28,8 @@ enum ConnectionStates
   Handling          =  5,
   ReadingFromFile   =  6,
   WritingIntoFile   =  7,
-  WaitingFromIO     =  8
+  WaitingFromIO     =  8,
+  ReceivingFromPut  =  9
 };
 
 typedef struct ConnectionStruct
@@ -49,6 +50,7 @@ typedef struct ConnectionStruct
   char            *request;
   FILE            *resource_file;
   char            *header;
+  char            *end_of_header;
   struct timeval  last_connection_time;
 
   /*List*/
@@ -67,7 +69,7 @@ int32_t receive_request_blocking(Connection *item);
 
 /* Receive function set */
 int32_t receive_request(Connection *item, const uint32_t transmission_rate);
-int32_t get_operation(Connection *item, const uint32_t transmission_rate);
+/*int32_t get_operation(Connection *item, const uint32_t transmission_rate);*/
 
 /* Send function set */
 int32_t send_response(Connection *item, uint32_t transmission_rate);
@@ -79,6 +81,9 @@ int32_t get_resource_data(Connection *item, char *file_name, char *mime);
 void setup_header(Connection *item, char *mime);
 int8_t is_active(Connection *item);
 void handle_request(Connection *item, char *path);
+
+int32_t handle_get_method(Connection *item, char *file_name);
+int32_t handle_put_method(Connection *item, char *file_name);
 
 /* Thread related functions */
 void queue_request_to_read(Connection *item,

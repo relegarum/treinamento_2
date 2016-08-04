@@ -111,6 +111,17 @@ int32_t handle_arguments(int argc,
   return 0;
 }
 
+int32_t verify_if_has_to_exchange_data(Connection* item)
+{
+  struct timeval next;
+  next.tv_sec = item->last_connection_time.tv_sec + 1;
+  next.tv_usec = item->last_connection_time.tv_usec;
+  struct timeval now;
+  gettimeofday(&now, NULL);
+
+  return (timercmp(&now, &next, >));
+}
+
 void setup_deamon()
 {
   pid_t pid;
@@ -329,13 +340,7 @@ int main(int argc, char **argv)
            ptr->state == Receiving ) &&
           FD_ISSET(ptr->socket_descriptor, &read_fds))
       {
-        get_operation(ptr, transmission_rate);
-        struct timeval next;
-        next.tv_sec = ptr->last_connection_time.tv_sec + 1;
-        next.tv_usec = ptr->last_connection_time.tv_usec;
-        struct timeval now;
-        gettimeofday(&now, NULL);
-        if (timercmp(&now, &next, >))
+        if (verify_if_has_to_exchange_data(ptr))
         {
           allinactive &= 0;
           if (receive_request(ptr, transmission_rate) == -1)
@@ -344,7 +349,7 @@ int main(int argc, char **argv)
             goto exit;
           }
 
-          if (ptr->partial_read  >= (uint32_t )transmission_rate)
+          if (ptr->partial_read + BUFSIZ > (uint32_t )transmission_rate)
           {
             gettimeofday(&(ptr->last_connection_time), NULL);
             lowest.tv_sec = ptr->last_connection_time.tv_sec;
@@ -361,12 +366,8 @@ int main(int argc, char **argv)
 
       if (FD_ISSET(ptr->socket_descriptor, &write_fds))
       {
-        struct timeval next;
-        next.tv_sec = ptr->last_connection_time.tv_sec + 1;
-        next.tv_usec = ptr->last_connection_time.tv_usec;
-        struct timeval now;
-        gettimeofday(&now, NULL);
-        if (timercmp(&now, &next, >))
+
+        if (verify_if_has_to_exchange_data(ptr))
         {
           allinactive &= 0;
           if (ptr->state == SendingHeader)
@@ -379,7 +380,7 @@ int main(int argc, char **argv)
             send_response(ptr, transmission_rate);
           }
 
-          if (ptr->partial_wrote >= (uint32_t )transmission_rate)
+          if (ptr->partial_wrote + BUFSIZ > (uint32_t )transmission_rate)
           {
             gettimeofday(&(ptr->last_connection_time), NULL);
             lowest.tv_sec = ptr->last_connection_time.tv_sec;
@@ -392,7 +393,6 @@ int main(int argc, char **argv)
       if (ptr->state == ReadingFromFile)
       {
         queue_request_to_read(ptr, &req_manager, transmission_rate);
-        //read_data_from_file(ptr, transmission_rate);
       }
 
       if (ptr->state == WaitingFromIO)
