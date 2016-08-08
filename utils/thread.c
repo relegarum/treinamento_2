@@ -66,14 +66,14 @@ void handle_request_item(request_list_node *item /*,int32_t id */)
 
 void read_from_file(request_list_node *item)
 {
-  //fseek(item->file, item->offset, SEEK_SET);
+  fseek(item->file, item->offset, SEEK_SET);
 
   int32_t read_data =  fread(item->buffer,
                              sizeof(char),
                              item->data_size,
                              item->file);
 
-  if (read_data <= 0)
+  if (read_data < 0)
   {
     perror("Read error");
   }
