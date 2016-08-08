@@ -33,20 +33,28 @@ typedef struct request_list_node_struct
 
 }request_list_node;
 
+request_list_node* create_request_to_read(FILE* file,
+                                          uint32_t id,
+                                          int32_t datagram_socket,
+                                          uint32_t data_size,
+                                          uint32_t offset);
+
+
+request_list_node *create_request_to_write(FILE *file,
+                                           char *buffer,
+                                           uint32_t id,
+                                           int32_t datagram_socket,
+                                           uint32_t data_size,
+                                           uint32_t offset);
+
 void init_node(request_list_node *node,
                FILE *file,
+               char *buffer,
                uint32_t id,
                int32_t datagram_socket,
                uint32_t data_size,
                uint32_t offset,
                uint8_t operation);
-
-request_list_node* create_request(FILE* file,
-                                 uint32_t id,
-                                 int32_t datagram_socket,
-                                 uint32_t data_size,
-                                 uint32_t offset,
-                                 uint8_t operation);
 
 void destroy_node(request_list_node *node);
 

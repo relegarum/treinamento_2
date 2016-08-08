@@ -19,17 +19,25 @@ extern const char *const RequestMsgMask;
 
 enum ConnectionStates
 {
-  Closed            = -1,
-  Free              =  0,
-  Receiving         =  1,
-  SendingHeader     =  2,
-  SendingResource   =  3,
-  Sent              =  4,
-  Handling          =  5,
-  ReadingFromFile   =  6,
-  WritingIntoFile   =  7,
-  WaitingFromIO     =  8,
-  ReceivingFromPut  =  9
+  Closed             = -1,
+  Free               =  0,
+  Receiving          =  1,
+  SendingHeader      =  2,
+  SendingResource    =  3,
+  Sent               =  4,
+  Handling           =  5,
+  ReadingFromFile    =  6,
+  WritingIntoFile    =  7,
+  WaitingFromIORead  =  8,
+  WaitingFromIOWrite =  9,
+  ReceivingFromPut   =  10
+};
+
+enum ConnectionMethods
+{
+  Unknown = 0,
+  Get     = 1,
+  Put     = 2
 };
 
 typedef struct ConnectionStruct
@@ -41,10 +49,12 @@ typedef struct ConnectionStruct
   uint8_t         error;
   uint64_t        read_data;
   uint64_t        wrote_data;
-  uint64_t        response_size;
+  uint64_t        resource_size;
   uint64_t        partial_read;
   uint32_t        partial_wrote;
   uint32_t        read_file_data;
+  uint32_t        data_to_write_size;
+  uint32_t        method;
   int32_t         datagram_socket;
   char            buffer[BUFSIZ];
   char            *request;
@@ -69,7 +79,7 @@ int32_t receive_request_blocking(Connection *item);
 
 /* Receive function set */
 int32_t receive_request(Connection *item, const uint32_t transmission_rate);
-/*int32_t get_operation(Connection *item, const uint32_t transmission_rate);*/
+int32_t receive_data_from_put(Connection *item, const uint32_t transmission_rate);
 
 /* Send function set */
 int32_t send_response(Connection *item, uint32_t transmission_rate);
@@ -90,10 +100,16 @@ void queue_request_to_read(Connection *item,
                            request_manager *manager,
                            const uint32_t transmission_rate);
 
+void queue_request_to_write(Connection *item,
+                            request_manager *manager,
+                            const uint32_t transmission_rate);
+
 void receive_from_thread(Connection *item, const uint32_t transmission_rate);
+void receive_from_thread_write(Connection *item, const uint32_t transmission_rate);
 
 int32_t read_data_from_file(Connection *item, const uint32_t transmission_rate);
-void wrote_data_into_file(char *buffer,
+void write_data_into_file(Connection *item,
+                          char *buffer,
                           const uint32_t rate,
                           FILE *resource_file);
 

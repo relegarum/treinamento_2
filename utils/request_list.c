@@ -5,28 +5,50 @@
 #include <unistd.h>
 
 
-request_list_node* create_request(FILE *file,
-                                 uint32_t id,
-                                 int32_t datagram_socket,
-                                 uint32_t data_size,
-                                 uint32_t offset,
-                                 uint8_t operation)
+request_list_node *create_request_to_read(FILE *file,
+                                          uint32_t id,
+                                          int32_t datagram_socket,
+                                          uint32_t data_size,
+                                          uint32_t offset)
 {
   request_list_node *node = malloc(sizeof(request_list_node));
 
   init_node(node,
             file,
+            NULL,
             id,
             datagram_socket,
             data_size,
             offset,
-            operation);
+            Read);
+
+  return node;
+}
+
+request_list_node *create_request_to_write(FILE *file,
+                                           char *buffer,
+                                           uint32_t id,
+                                           int32_t datagram_socket,
+                                           uint32_t data_size,
+                                           uint32_t offset)
+{
+  request_list_node *node = malloc(sizeof(request_list_node));
+
+  init_node(node,
+            file,
+            buffer,
+            id,
+            datagram_socket,
+            data_size,
+            offset,
+            Write);
 
   return node;
 }
 
 void init_node(request_list_node *node,
                FILE *file,
+               char *buffer,
                uint32_t id,
                int32_t datagram_socket,
                uint32_t data_size,
@@ -34,7 +56,15 @@ void init_node(request_list_node *node,
                uint8_t operation)
 {
   node->file      = file;
-  node->buffer[0] = '\0';
+  if (buffer != NULL)
+  {
+    strncpy(node->buffer, buffer, data_size);
+  }
+  else
+  {
+    node->buffer[0] = '\0';
+  }
+
   node->id        = id;
   node->data_size = data_size;
   node->operation = operation;

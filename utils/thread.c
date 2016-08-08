@@ -52,7 +52,21 @@ void *do_thread(void *arg)
 
 void handle_request_item(request_list_node *item /*,int32_t id */)
 {
-  fseek(item->file, item->offset, SEEK_SET);
+  if (item->operation == Read)
+  {
+    read_from_file(item);
+  }
+  else
+  {
+    write_into_file(item);
+  }
+  destroy_node(item);
+  free(item);
+}
+
+void read_from_file(request_list_node *item)
+{
+  //fseek(item->file, item->offset, SEEK_SET);
 
   int32_t read_data =  fread(item->buffer,
                              sizeof(char),
@@ -69,7 +83,11 @@ void handle_request_item(request_list_node *item /*,int32_t id */)
   {
     perror(" sendto error:");
   }
+}
 
-  destroy_node(item);
-  free(item);
+void write_into_file(request_list_node *item)
+{
+  fseek(item->file, item->offset, SEEK_SET);
+  fwrite(item->buffer, sizeof(char), item->data_size, item->file);
+  puts(item->buffer);
 }

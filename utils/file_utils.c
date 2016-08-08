@@ -23,7 +23,8 @@ int8_t verify_file_path(char *path, char *resource, char *full_path)
   char real_path[PATH_MAX];
   memset(real_path, '\0', PATH_MAX);
   snprintf(full_path, file_name_size, "%s%s", path, resource);
-  if (realpath(full_path, real_path) != NULL )
+  realpath(full_path, real_path);
+  if (real_path != NULL)
   {
     if (strncmp(path, real_path, path_size) != 0)
     {
