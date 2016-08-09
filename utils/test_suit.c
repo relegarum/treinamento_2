@@ -149,16 +149,24 @@ void test_threads()
 
   sleep(5);
 
-  request_list_node *request = create_request_to_read(NULL, 255, 10, 0, 0);
+  request_list_node *request = create_request_to_read(NULL, 255, 0, 0);
   add_request_in_list(&request_manager, request);
 
-  request_list_node *request2 = create_request_to_read(NULL, 254, 11, 0, 0);
+  request_list_node *request2 = create_request_to_read(NULL, 254, 0, 0);
   add_request_in_list(&request_manager, request2);
 
-  request_list_node *request3 = create_request_to_read(NULL, 253, 12, 0, 0);
+  request_list_node *request3 = create_request_to_read(NULL, 253, 0, 0);
   add_request_in_list(&request_manager, request3);
 
   sleep(5);
 
   free_request_list(&request_manager);
+}
+
+
+void teste_rename()
+{
+  rename("big", "huge_file.txt");
+  rename("huge_file.txt", "~huge_file.txt");
+  rename("~huge_file.txt", "huge_file.txt");
 }

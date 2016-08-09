@@ -298,6 +298,7 @@ int main(int argc, char **argv)
     read_fds   = master;
     write_fds  = master;
     except_fds = master;
+
     int ret = select(greatest_file_desc + 1,
                      &read_fds,
                      &write_fds,
@@ -390,8 +391,8 @@ int main(int argc, char **argv)
 
       if (ptr->state == WritingIntoFile)
       {
-        write_data_into_file(ptr, ptr->buffer, ptr->read_data, ptr->resource_file);
-        //queue_request_to_write(ptr, &req_manager, transmission_rate);
+        //write_data_into_file(ptr, ptr->resource_file);
+        queue_request_to_write(ptr, &req_manager);
       }
 
       if (ptr->state == ReadingFromFile)
@@ -407,6 +408,7 @@ int main(int argc, char **argv)
 
       if (ptr->state == WaitingFromIOWrite)
       {
+        receive_from_thread_write(ptr);
       }
 
       if (timercmp(&(ptr->last_connection_time), &lowest, <))
@@ -415,7 +417,7 @@ int main(int argc, char **argv)
         lowest.tv_usec = ptr->last_connection_time.tv_usec;
       }
 
-      if (ptr->state == Sent)
+      if (ptr->state == Sent )
       {
         Connection *next = ptr->next_ptr;
         close(ptr->socket_descriptor);
@@ -426,7 +428,7 @@ int main(int argc, char **argv)
       else
       {
         ptr = ptr->next_ptr;
-      }
+      }      
     }
 
     useconds_t time_to_sleep = calculate_time_to_sleep(&manager,

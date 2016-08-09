@@ -61,7 +61,6 @@ void handle_request_item(request_list_node *item /*,int32_t id */)
     write_into_file(item);
   }
   destroy_node(item);
-  free(item);
 }
 
 void read_from_file(request_list_node *item)
@@ -88,6 +87,18 @@ void read_from_file(request_list_node *item)
 void write_into_file(request_list_node *item)
 {
   fseek(item->file, item->offset, SEEK_SET);
-  fwrite(item->buffer, sizeof(char), item->data_size, item->file);
-  puts(item->buffer);
+  uint32_t data_wrote = fwrite(item->buffer, sizeof(char), item->data_size, item->file);
+
+  if (data_wrote == 0 )
+  {
+    perror(__FUNCTION__);
+    data_wrote = 0;
+  }
+  fflush(item->file);
+  printf("%s", item->buffer);
+
+  if (write(item->datagram_socket, &data_wrote, sizeof(data_wrote)) < 0)
+  {
+    perror(" sendto error:");
+  }
 }

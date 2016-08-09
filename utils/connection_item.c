@@ -39,6 +39,7 @@ const char *ContentLenghtMask    = "Content-Length: %lld\r\n";
 const char *ContentTypeStr       = "Content-Type: %s\r\n";
 const char *UnknownTypeStr       = "application/octet-stream";
 const char *ServerStr            = "Server: Aker\r\n";
+const char *ContentLengthNeedle  ="Content-Length:";
 
 const char * const EndOfHeader    = "\r\n\r\n";
 const char * const RequestMsgMask = "GET %s HTTP/1.0\r\n\r\n";
@@ -124,6 +125,8 @@ void free_connection_item(Connection *item)
     close(item->datagram_socket);
     item->datagram_socket = -1;
   }
+
+  free(item);
 }
 
 Connection *create_connection_item(int socket_descriptor, uint32_t id)
@@ -601,8 +604,6 @@ int8_t is_active(Connection *item)
 
 
 void write_data_into_file(Connection *item,
-                          char *buffer,
-                          const uint32_t rate,
                           FILE *resource_file)
 {
   fseek(resource_file, item->wrote_data, SEEK_SET);
@@ -610,13 +611,13 @@ void write_data_into_file(Connection *item,
   if (wrote_bytes <= 0)
   {
     perror("write_data_into_file");
-    item->state = WaitingFromIOWrite;
+    item->state = WritingIntoFile;
     return;
   }
 
   fflush(resource_file);
 
-  item->wrote_data +=item->data_to_write_size;
+  item->wrote_data += wrote_bytes;
   if (item->wrote_data >= item->resource_size)
   {
     item->state = SendingHeader;
@@ -673,7 +674,6 @@ void queue_request_to_read(Connection *item,
 
   uint32_t rate = (BUFSIZ < transmission_rate)? BUFSIZ - 1: transmission_rate;
   request_list_node *node = create_request_to_read(item->resource_file,
-                                                   item->id,
                                                    io_thread_socket,
                                                    rate,
                                                    item->wrote_data);
@@ -683,8 +683,8 @@ void queue_request_to_read(Connection *item,
 
 
 void queue_request_to_write(Connection *item,
-                            request_manager *manager,
-                            const uint32_t transmission_rate)
+                            request_manager *manager)
+
 {
   int socket_pair[2];
   if (socketpair(AF_UNIX, SOCK_DGRAM, 0, socket_pair))
@@ -697,12 +697,10 @@ void queue_request_to_write(Connection *item,
 
   set_socket_as_nonblocking(item->datagram_socket);
 
-  uint32_t rate = (BUFSIZ < transmission_rate)? BUFSIZ - 1: transmission_rate;
   request_list_node *node = create_request_to_write(item->resource_file,
-                                                    item->end_of_header,
-                                                    item->id,
+                                                    item->buffer,
                                                     io_thread_socket,
-                                                    rate + 1,
+                                                    item->data_to_write_size,
                                                     item->wrote_data);
   add_request_in_list(manager, node);
   item->state = WaitingFromIOWrite;
@@ -744,11 +742,11 @@ void receive_from_thread(Connection *item, const uint32_t transmission_rate)
   item->state = SendingResource;
 }
 
-void receive_from_thread_write(Connection *item, const uint32_t transmission_rate)
+void receive_from_thread_write(Connection *item)
 {
-  uint8_t success = 0;
-  uint32_t rate = (BUFSIZ - 1 < transmission_rate)? BUFSIZ - 1: transmission_rate;
-  int32_t read_data = read(item->datagram_socket, &success, 1);
+  uint32_t data_wrote = 0;
+  /*uint32_t rate = (BUFSIZ - 1 < transmission_rate)? BUFSIZ - 1: transmission_rate;*/
+  int32_t read_data = read(item->datagram_socket, &data_wrote, sizeof(data_wrote));
   if (read_data < 0)
   {
     if (errno == EAGAIN ||
@@ -769,56 +767,36 @@ void receive_from_thread_write(Connection *item, const uint32_t transmission_rat
     return;
   }
 
-  if (success)
+  if (data_wrote > 0)
   {
     item->state = ReceivingFromPut;
+    item->wrote_data += data_wrote;
   }
   else
   {
     item->state = WritingIntoFile;
   }
 
+  if (item->wrote_data >= item->resource_size)
+  {
+    item->state = SendingHeader;
+    item->header = strdup(HeaderOk);
+    item->wrote_data = 0;
+    return;
+  }
+
   /*printf("%s", item->buffer);*/
   close(item->datagram_socket);
-  //item->read_file_data = read_data;
+  /*item->read_file_data = read_data;*/
 }
 
 int32_t handle_get_method(Connection *item, char *file_name)
 {
-  //char mime[MAX_MIME_SIZE];
   item->method = Get;
-  item->resource_file = fopen(file_name, "rb");
-  if (item->resource_file == NULL)
-  {
-    if (errno == EACCES)
-    {
-      item->header = strdup(HeaderUnauthorized);
-      item->resource_file = unauthorized_file;
-      item->error         = 1;
-      goto exit_handle;
-    }
-    else if (errno == E2BIG)
-    {
-      item->header = strdup(HeaderBadRequest);
-      item->resource_file = bad_request_file;
-      item->error         = 1;
-      goto exit_handle;
-    }
-    else
-    {
-      item->header = strdup(HeaderNotFound);
-      item->resource_file = not_found_file;
-      item->error         = 1;
-      goto exit_handle;
-    }
-  }
 
-exit_handle:
-  /*get_resource_data(item, file_name, mime);
-  if (item->error == 0)
-  {
-    setup_header(item, mime);
-  }*/
+  item->resource_file = fopen(file_name, "rb");
+  get_file_state(item);
+
   item->state = SendingHeader;
   return item->error;
 }
@@ -829,6 +807,16 @@ int32_t handle_put_method(Connection *item, char *file_name)
   item->method = Put;
   int32_t ret = 0;
   item->resource_file = fopen(file_name, "wb");
+
+  ret = get_file_state(item);
+  ret = extract_content_length_from_header(item);
+
+  item->state = WritingIntoFile;
+  return ret;
+}
+
+int32_t get_file_state(Connection *item)
+{
   if (item->resource_file == NULL)
   {
     if (errno == EACCES)
@@ -836,7 +824,7 @@ int32_t handle_put_method(Connection *item, char *file_name)
       item->header = strdup(HeaderUnauthorized);
       item->resource_file = unauthorized_file;
       item->error         = 1;
-      ret = -1;
+      return -1;
 
     }
     else if (errno == E2BIG)
@@ -844,27 +832,41 @@ int32_t handle_put_method(Connection *item, char *file_name)
       item->header = strdup(HeaderBadRequest);
       item->resource_file = bad_request_file;
       item->error         = 1;
-      ret = -1;
+      return -1;
     }
     else
     {
       item->header = strdup(HeaderNotFound);
       item->resource_file = not_found_file;
       item->error         = 1;
-      ret = -1;
+      return -1;
     }
   }
 
-  char* carriage = strstr(item->request, "Content-Length:");
+  return 0;
+}
+
+int32_t extract_content_length_from_header(Connection *item)
+{
+  char *carriage = strstr(item->request, ContentLengthNeedle);
   if (carriage == NULL)
   {
     item->header = strdup(HeaderBadRequest);
     item->resource_file = bad_request_file;
     item->error         = 1;
-    ret = -1;
+    return -1;
   }
   sscanf(carriage, ContentLenghtMask, &(item->resource_size));
 
-  item->state = WritingIntoFile;
-  return ret;
+  return 0;
+}
+
+void verify_connection_state(Connection *item)
+{
+  if (item->state < FirsState ||
+      item->state > LastState)
+  {
+    printf("Connection in state Unknown:\n State: %d\n Request: %s\n", item->state, item->request);
+    item->state = Closed;
+  }
 }

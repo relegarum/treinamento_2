@@ -30,7 +30,9 @@ enum ConnectionStates
   WritingIntoFile    =  7,
   WaitingFromIORead  =  8,
   WaitingFromIOWrite =  9,
-  ReceivingFromPut   =  10
+  ReceivingFromPut   =  10,
+  FirsState          = Closed,
+  LastState          = ReceivingFromPut
 };
 
 enum ConnectionMethods
@@ -44,7 +46,7 @@ typedef struct ConnectionStruct
 {
   int32_t         socket_descriptor;
   uint32_t        id;
-  uint8_t         state;
+  int8_t          state;
   uint8_t         header_sent;
   uint8_t         error;
   uint64_t        read_data;
@@ -94,6 +96,8 @@ void handle_request(Connection *item, char *path);
 
 int32_t handle_get_method(Connection *item, char *file_name);
 int32_t handle_put_method(Connection *item, char *file_name);
+int32_t get_file_state(Connection *item);
+int32_t extract_content_length_from_header(Connection *item);
 
 /* Thread related functions */
 void queue_request_to_read(Connection *item,
@@ -101,17 +105,16 @@ void queue_request_to_read(Connection *item,
                            const uint32_t transmission_rate);
 
 void queue_request_to_write(Connection *item,
-                            request_manager *manager,
-                            const uint32_t transmission_rate);
+                            request_manager *manager);
 
 void receive_from_thread(Connection *item, const uint32_t transmission_rate);
-void receive_from_thread_write(Connection *item, const uint32_t transmission_rate);
+void receive_from_thread_write(Connection *item);
 
 int32_t read_data_from_file(Connection *item, const uint32_t transmission_rate);
 void write_data_into_file(Connection *item,
-                          char *buffer,
-                          const uint32_t rate,
                           FILE *resource_file);
+
+void verify_connection_state(Connection *item);
 
 
 FILE *bad_request_file;

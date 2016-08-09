@@ -6,7 +6,6 @@ request_manager create_request_manager()
 {
   request_manager manager;
   init_request_list(&manager);
-  printf("manager init");
   return manager;
 }
 
@@ -40,7 +39,7 @@ void add_request_in_list(request_manager *manager, request_list_node *new_item)
   }
   ++(manager->size);
 
-  pthread_cond_signal(&(manager->conditional_variable));
+  pthread_cond_broadcast(&(manager->conditional_variable));
   pthread_mutex_unlock(&(manager->mutex));
   /*pthread_rwlock_unlock(&(manager->lock));*/
 }
