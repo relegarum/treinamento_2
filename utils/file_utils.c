@@ -6,6 +6,41 @@
 #include <limits.h>
 
 const char * const IndexStr       = "/index.html";
+const char * const PutMark        = ".~put";
+
+
+#define PutMarkSize 5
+
+
+int32_t init_file_components(FileComponents *file, char *file_path, const char *flags)
+{
+  if (file_path == NULL ||
+      file_path[0] == '\0')
+  {
+    printf("Wrong file path\n");
+    return -1;
+  }
+
+  strncpy(file->file_path, file_path, strlen(file_path));
+  file->file_ptr = fopen(file_path, flags);
+  if (file->file_ptr == NULL)
+  {
+    return -1;
+  }
+
+  return 0;
+}
+
+int32_t destroy_file_components(FileComponents *file)
+{
+  if (file->file_ptr != NULL)
+  {
+    fclose(file->file_ptr);
+  }
+
+  file->file_path[0] = '\0';
+  return 0;
+}
 
 int8_t verify_file_path(char *path, char *resource, char *full_path)
 {
@@ -23,8 +58,8 @@ int8_t verify_file_path(char *path, char *resource, char *full_path)
   char real_path[PATH_MAX];
   memset(real_path, '\0', PATH_MAX);
   snprintf(full_path, file_name_size, "%s%s", path, resource);
-  realpath(full_path, real_path);
-  if (real_path != NULL)
+  char* ret = realpath(full_path, real_path); /**/
+  if (ret != NULL)
   {
     if (strncmp(path, real_path, path_size) != 0)
     {
@@ -44,7 +79,7 @@ int8_t verify_file_path(char *path, char *resource, char *full_path)
   }
   else
   {
-    printf("Directory not found\n");
+    //printf("Directory not found\n");
     goto clear_full_path;
   }
 
@@ -80,3 +115,33 @@ int32_t get_file_mime(uint32_t full_path_size, char *full_path, char *mime)
   return 0;
 }
 
+int32_t rename_file_after_put(FileComponents *file)
+{
+  if (file == NULL)
+  {
+    printf("Null file component received\n");
+    return -1;
+  }
+
+  uint32_t size_of_file_name = strlen(file->file_path);
+  if (size_of_file_name < PutMarkSize)
+  {
+    printf("Invalid Name\n");
+    return -1;
+  }
+
+  if (strncmp(file->file_path  + size_of_file_name - PutMarkSize, PutMark, PutMarkSize) != 0 )
+  {
+    printf("Invalid file name %s\n", file->file_path);
+    return -1;
+  }
+
+  char old_file_name[PATH_MAX];
+  strncpy(old_file_name,file->file_path, size_of_file_name);
+  strncpy(file->file_path,file->file_path, size_of_file_name - PutMarkSize);
+  if (rename(old_file_name, file->file_path) < 0)
+  {
+    perror("rename");
+  }
+  return 0;
+}

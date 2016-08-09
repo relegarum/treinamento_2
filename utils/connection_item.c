@@ -325,7 +325,7 @@ void handle_request(Connection *item, char *path)
   memset(operation, '\0', OPERATION_SIZE);
   memset(resource,  '\0', MAX_RESOURCE_SIZE);
   memset(protocol,  '\0', PROTOCOL_SIZE);
-  memset(file_name,  '\0', PROTOCOL_SIZE);
+  memset(file_name, '\0', PROTOCOL_SIZE);
 
   char *request = item->request;
   item->resource_file = NULL;

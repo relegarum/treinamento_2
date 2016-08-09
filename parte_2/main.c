@@ -217,6 +217,9 @@ void start_threads(thread *thread_pool, const uint32_t pool_size)
 
 int main(int argc, char **argv)
 {
+  //test_rename();
+  //return 0;
+
   /*setup_deamon();*/
   int32_t listening_sock_description = -1;
   int32_t transmission_rate    = 0;

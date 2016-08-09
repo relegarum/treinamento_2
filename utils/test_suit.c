@@ -164,9 +164,18 @@ void test_threads()
 }
 
 
-void teste_rename()
+void test_rename()
 {
-  rename("big", "huge_file.txt");
-  rename("huge_file.txt", "~huge_file.txt");
-  rename("~huge_file.txt", "huge_file.txt");
+  FILE *out;
+  out = fopen("arquivos_download/one.txt", "wb");
+  if (out == NULL)
+  {
+    puts("erro");
+    return;
+  }
+
+  int ret = rename("arquivos_download/two.txt", "one.txt");
+  ret     = rename("arquivos_download/three.txt", "one.txt");
+
+  fclose(out);
 }
