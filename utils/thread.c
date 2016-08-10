@@ -87,7 +87,10 @@ void read_from_file(request_list_node *item)
 void write_into_file(request_list_node *item)
 {
   fseek(item->file, item->offset, SEEK_SET);
-  uint32_t data_wrote = fwrite(item->buffer, sizeof(char), item->data_size, item->file);
+  uint32_t data_wrote = fwrite(item->buffer,
+                               sizeof(char),
+                               item->data_size,
+                               item->file);
 
   if (data_wrote == 0 )
   {
@@ -95,7 +98,7 @@ void write_into_file(request_list_node *item)
     data_wrote = 0;
   }
   fflush(item->file);
-  printf("%s", item->buffer);
+  /*printf("%s", item->buffer);*/
 
   if (write(item->datagram_socket, &data_wrote, sizeof(data_wrote)) < 0)
   {

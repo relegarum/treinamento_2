@@ -4,31 +4,59 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <sys/stat.h>
 
 const char * const IndexStr       = "/index.html";
 const char * const PutMark        = ".~put";
 
-
 #define PutMarkSize 5
 
+int file_exist( char *file_path)
+{
+  struct stat file_stats;
+  return (stat(file_path, &file_stats) == 0);
+}
 
-int32_t init_file_components(FileComponents *file, char *file_path, const char *flags)
+
+int32_t init_file_components(FileComponents *file,
+                             char *file_path,
+                             const int8_t flags)
 {
   if (file_path == NULL ||
       file_path[0] == '\0')
   {
     printf("Wrong file path\n");
-    return -1;
+    return FilePathNull;
   }
 
-  strncpy(file->file_path, file_path, strlen(file_path));
-  file->file_ptr = fopen(file_path, flags);
+  if (flags & ReadFile)
+  {
+    size_t file_path_size = strlen(file_path);
+    strncpy(file->file_path, file_path, file_path_size);
+    file->file_path[file_path_size + 1] = '\0';
+    file->file_ptr = fopen(file->file_path, "rb");
+  }
+  else if (flags & WriteFile)
+  {
+    snprintf(file->file_path, PATH_MAX, "%s%s", file_path, PutMark);
+    if (file_exist(file->file_path))
+    {
+      return ExistentFile;
+    }
+    file->file_ptr = fopen(file->file_path, "wb");
+  }
+  else
+  {
+    printf("Unknown flags");
+    return UnknownFlag;
+  }
+
   if (file->file_ptr == NULL)
   {
-    return -1;
+    return CoudntOpen;
   }
 
-  return 0;
+  return Success;
 }
 
 int32_t destroy_file_components(FileComponents *file)
@@ -59,7 +87,7 @@ int8_t verify_file_path(char *path, char *resource, char *full_path)
   memset(real_path, '\0', PATH_MAX);
   snprintf(full_path, file_name_size, "%s%s", path, resource);
   char* ret = realpath(full_path, real_path); /**/
-  if (ret != NULL)
+  if (*real_path != '\0')
   {
     if (strncmp(path, real_path, path_size) != 0)
     {
@@ -123,6 +151,12 @@ int32_t rename_file_after_put(FileComponents *file)
     return -1;
   }
 
+  if (file->file_ptr != NULL)
+  {
+    fclose(file->file_ptr);
+    file->file_ptr = NULL;
+  }
+
   uint32_t size_of_file_name = strlen(file->file_path);
   if (size_of_file_name < PutMarkSize)
   {
@@ -130,7 +164,10 @@ int32_t rename_file_after_put(FileComponents *file)
     return -1;
   }
 
-  if (strncmp(file->file_path  + size_of_file_name - PutMarkSize, PutMark, PutMarkSize) != 0 )
+  uint32_t size_of_new_file_name  = size_of_file_name - PutMarkSize;
+  if (strncmp(file->file_path + size_of_new_file_name,
+              PutMark,
+              PutMarkSize) != 0)
   {
     printf("Invalid file name %s\n", file->file_path);
     return -1;
@@ -138,10 +175,22 @@ int32_t rename_file_after_put(FileComponents *file)
 
   char old_file_name[PATH_MAX];
   strncpy(old_file_name,file->file_path, size_of_file_name);
-  strncpy(file->file_path,file->file_path, size_of_file_name - PutMarkSize);
+  strncpy(file->file_path,file->file_path, size_of_new_file_name);
+  old_file_name[size_of_file_name]       = '\0';
+  file->file_path[size_of_new_file_name] = '\0';
+
   if (rename(old_file_name, file->file_path) < 0)
   {
+    printf("old_name: %s\n", old_file_name);
+    printf("new name: %s\n", file->file_path);
     perror("rename");
+    return -1;
   }
   return 0;
+}
+
+
+int32_t is_valid_file(FileComponents *file)
+{
+  return (file->file_ptr == NULL) ? 0 : 1;
 }

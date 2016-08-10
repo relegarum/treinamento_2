@@ -174,8 +174,8 @@ void test_rename()
     return;
   }
 
-  int ret = rename("arquivos_download/two.txt", "one.txt");
-  ret     = rename("arquivos_download/three.txt", "one.txt");
+  rename("arquivos_download/two.txt", "one.txt");
+  rename("arquivos_download/three.txt", "one.txt");
 
   fclose(out);
 }
