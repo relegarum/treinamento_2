@@ -38,6 +38,7 @@ const char * const HeaderInternalError  = "HTTP/1.0 500 Internal Server Error\r\
 const char * const HeaderUnauthorized   = "HTTP/1.0 401 Unauthorized\r\n\r\n";
 const char * const HeaderWrongVersion   = "HTTP/1.0 505 HTTP Version Not Supported\r\n\r\n";
 const char * const HeaderNotImplemented = "HTTP/1.0 501 HTTP Not Implemented\r\n\r\n";
+const char * const HeaderForbidden      = "HTTP/1.0 403 HTTP Forbidden\r\n\r\n";
 const char * const EndOfHeader    = "\r\n\r\n";
 const char * const RequestMsgMask = "GET %s HTTP/1.0\r\n\r\n";
 
@@ -45,7 +46,7 @@ const char *ContentLenghtMask    = "Content-Length: %lld\r\n";
 const char *ContentTypeStr       = "Content-Type: %s\r\n";
 const char *UnknownTypeStr       = "application/octet-stream";
 const char *ServerStr            = "Server: Aker\r\n";
-const char *ContentLengthNeedle  ="Content-Length:";
+const char *ContentLengthNeedle  = "Content-Length:";
 
 
 void init_connection_item(Connection *item, int socket_descriptor, uint32_t id)
@@ -266,8 +267,9 @@ void handle_request(Connection *item, char *path)
     item->error = 1;
     goto exit_handle;
   }
+  setup_file_path(path, resource, file_final_path);
 
-  if (verify_file_path(path, resource, file_final_path) != 0)
+  if (verify_file_path(path, file_final_path) != 0)
   {
     item->header = strdup(HeaderNotFound);
     item->file_components.file_ptr = not_found_file;
@@ -319,27 +321,17 @@ int32_t get_resource_data(Connection *item, char *file_name, char *mime)
   {
     return -1;
   }
-  int32_t fd = fileno(item->file_components.file_ptr);
-  struct stat buffer;
-  if (fstat(fd, &buffer) == -1)
-  {
-    item->header = strdup(HeaderInternalError);
-    item->file_components.file_ptr = NULL;
-    item->error = 1;
-    return -1;
-  }
 
-  if (!S_ISREG(buffer.st_mode))
+  /*if (!is_regular_file(&(item->file_components)))
   {
     item->header = strdup(HeaderBadRequest);
-    /*fclose(item->file_components.file_ptr);*/
+    fclose(item->file_components.file_ptr);
     item->file_components.file_ptr = NULL;
     item->error = 1;
     return -1;
-  }
+  }*/
 
-  uint64_t size = buffer.st_size;
-  item->resource_size = size;
+  item->resource_size = item->file_components.stats.st_size;
   if (file_name != NULL)
   {
     uint32_t file_name_size = strlen(file_name);
@@ -562,7 +554,15 @@ int32_t handle_get_method(Connection *item, char *file_name)
 {
   item->method = Get;
 
-  init_file_components(&(item->file_components), file_name, ReadFile);
+  int32_t ret = init_file_components(&(item->file_components), file_name, ReadFile);
+  if (ret == NotARegularFile)
+  {
+    item->header = strdup(HeaderForbidden);
+    item->file_components.file_ptr = forbidden_file;
+    item->error = 1;
+    return item->error;
+  }
+
   get_file_state(item);
 
   item->state = SendingHeader;
@@ -580,6 +580,13 @@ int32_t handle_put_method(Connection *item, char *file_name)
   {
     item->header = strdup(HeaderConflict);
     item->error  = 1;
+    goto exit_handle;
+  }
+  if (ret == NotARegularFile)
+  {
+    item->header = strdup(HeaderForbidden);
+    item->file_components.file_ptr = forbidden_file;
+    item->error = 1;
     goto exit_handle;
   }
   ret = get_file_state(item);

@@ -25,6 +25,7 @@ extern const char *const HeaderInternalError;
 extern const char *const HeaderUnauthorized;
 extern const char *const HeaderWrongVersion;
 extern const char *const HeaderNotImplemented;
+extern const char *const HeaderForbidden;
 
 extern const char *const EndOfHeader;
 extern const char *const RequestMsgMask;
@@ -138,5 +139,6 @@ FILE *internal_error_file;
 FILE *unauthorized_file;
 FILE *wrong_version_file;
 FILE *not_implemented_file;
+FILE *forbidden_file;
 
 #endif /* CONNECTION_ITEM_H*/
