@@ -79,5 +79,6 @@ void clean_default_files();
 int32_t verify_protocol(char * protocol);
 
 int32_t set_socket_as_nonblocking(int socket_descriptor);
+int32_t set_socket_timeout(int socked_descriptor, struct timeval *timeout);
 
 #endif // HTTP_UTILS_H
