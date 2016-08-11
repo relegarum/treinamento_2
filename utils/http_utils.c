@@ -24,6 +24,7 @@ const char *HtmlInternalErrorName    = "InternalErrorName.html";
 const char *HtmlUnauthorizedFileName = "Unauthorized.html";
 const char *HtmlWrongVersionFileName = "WrongVersion.html";
 const char *HtmlNotImplemented       = "NotImplemented.html";
+const char *HtmlForbidden            = "Forbidden.html";
 const char *HTTP10Str                = "HTTP/1.0";
 const char *HTTP11Str                = "HTTP/1.1";
 
@@ -328,7 +329,8 @@ void create_default_response_files(char *path,
                                    FILE **internal_error_file,
                                    FILE **unauthorized_file,
                                    FILE **version_wrond_file,
-                                   FILE **not_implemented_file)
+                                   FILE **not_implemented_file,
+                                   FILE **forbidden_file)
 {
 
   *bad_request_file     = NULL;
@@ -337,6 +339,7 @@ void create_default_response_files(char *path,
   *unauthorized_file    = NULL;
   *version_wrond_file   = NULL;
   *not_implemented_file = NULL;
+  *forbidden_file       = NULL;
 
   int32_t path_size = strlen(path);
   char *path_bad_request_file_name     = malloc(sizeof(char)*(strlen(HtmlBadRequestFileName)   + path_size + 2));
@@ -345,6 +348,7 @@ void create_default_response_files(char *path,
   char *path_unauthorized_file_name    = malloc(sizeof(char)*(strlen(HtmlUnauthorizedFileName) + path_size + 2));
   char *path_wrong_file_name           = malloc(sizeof(char)*(strlen(HtmlWrongVersionFileName) + path_size + 2));
   char *path_not_implemented_file_name = malloc(sizeof(char)*(strlen(HtmlNotImplemented)       + path_size + 2));
+  char *path_forbidden_file_name       = malloc(sizeof(char)*(strlen(HtmlForbidden)            + path_size + 2));
   {
     snprintf(path_bad_request_file_name, path_size + strlen(HtmlBadRequestFileName) + 2, "%s/%s", path, HtmlBadRequestFileName);
     *bad_request_file = fopen(path_bad_request_file_name, "w+b");
@@ -399,6 +403,15 @@ void create_default_response_files(char *path,
       fwrite(html, sizeof(char), strlen(html), *not_implemented_file);
       fflush(*not_implemented_file);
     }
+
+    snprintf(path_forbidden_file_name, path_size + strlen(HtmlForbidden) + 2, "%s/%s", path, HtmlForbidden);
+    *forbidden_file = fopen(path_forbidden_file_name, "w+b");
+    if (*forbidden_file != NULL)
+    {
+      char *html = HTML_ERROR(403, HTTP Forbidden);
+      fwrite(html, sizeof(char), strlen(html), *forbidden_file);
+      fflush(*forbidden_file);
+    }
   }
   free(path_bad_request_file_name);
   free(path_not_found_file_name);
@@ -406,6 +419,7 @@ void create_default_response_files(char *path,
   free(path_unauthorized_file_name);
   free(path_wrong_file_name);
   free(path_not_implemented_file_name);
+  free(path_forbidden_file_name);
 }
 
 void clean_default_files()
@@ -444,6 +458,12 @@ void clean_default_files()
   {
     fclose(not_implemented_file);
     not_implemented_file = NULL;
+  }
+
+  if (forbidden_file != NULL)
+  {
+    fclose(forbidden_file);
+    forbidden_file = NULL;
   }
 }
 
