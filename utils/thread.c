@@ -19,6 +19,15 @@ void start_thread(thread *this_thread)
                  (void *)(this_thread));
 }
 
+void start_thread_pool(thread *thread_pool, const uint32_t pool_size)
+{
+  uint32_t index = 0;
+  for (;index < pool_size; ++index)
+  {
+    start_thread(&(thread_pool[index]));
+  }
+}
+
 void *do_thread(void *arg)
 {
   thread *this_thread = (thread *)(arg);

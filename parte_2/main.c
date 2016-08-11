@@ -206,15 +206,6 @@ void setup_threads(thread *thread_pool,
   }
 }
 
-void start_threads(thread *thread_pool, const uint32_t pool_size)
-{
-  uint32_t index = 0;
-  for (;index < pool_size; ++index)
-  {
-    start_thread(&(thread_pool[index]));
-  }
-}
-
 int main(int argc, char **argv)
 {
   //test_rename();
@@ -235,7 +226,7 @@ int main(int argc, char **argv)
 
   thread thread_pool[NUMBER_OF_THREADS];
   setup_threads(thread_pool, NUMBER_OF_THREADS, &req_manager);
-  start_threads(thread_pool, NUMBER_OF_THREADS);
+  start_thread_pool(thread_pool, NUMBER_OF_THREADS);
 
 
   int success = 0;
@@ -405,7 +396,7 @@ int main(int argc, char **argv)
 
       if (ptr->state == WaitingFromIORead)
       {
-        receive_from_thread(ptr, transmission_rate);
+        receive_from_thread_read(ptr, transmission_rate);
       }
 
       if (ptr->state == WaitingFromIOWrite)
@@ -418,6 +409,8 @@ int main(int argc, char **argv)
         lowest.tv_sec = ptr->last_connection_time.tv_sec;
         lowest.tv_usec = ptr->last_connection_time.tv_usec;
       }
+
+      verify_connection_state(ptr);
 
       if (ptr->state == Sent ||
           ptr->state == Closed)
