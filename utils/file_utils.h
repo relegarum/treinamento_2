@@ -21,13 +21,14 @@ enum InitFileComponentsEnum
   FilePathNull = -1,
   ExistentFile = -2,
   UnknownFlag  = -3,
-  CoudntOpen   = -4
+  CouldntOpen   = -4
 };
 
 typedef struct file_struct
 {
   FILE *file_ptr;
   char file_path[PATH_MAX];
+  uint8_t is_new_file;
 }FileComponents;
 
 int32_t init_file_components(FileComponents *file,
@@ -36,9 +37,12 @@ int32_t init_file_components(FileComponents *file,
 
 int32_t destroy_file_components(FileComponents *file);
 
+void read_treatment(FileComponents *file, char *file_path);
+int8_t write_treatment(FileComponents *file, char *file_path);
+
 int8_t  verify_file_path(char *path, char *resource, char *full_path);
 int32_t get_file_mime(uint32_t full_path_size, char *full_path, char *mime);
 int32_t is_valid_file(FileComponents *file);
-int32_t rename_file_after_put(FileComponents *file);
+int32_t treat_file_after_put(FileComponents *file, uint8_t error);
 
 #endif /*FILE_UTILS_H*/
