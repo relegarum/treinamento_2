@@ -16,6 +16,16 @@
 
 #define END_OF_HEADER_SIZE    4
 
+extern const char *const HeaderBadRequest;
+extern const char *const HeaderOk;
+extern const char *const HeaderCreated;
+extern const char *const HeaderConflict;
+extern const char *const HeaderNotFound;
+extern const char *const HeaderInternalError;
+extern const char *const HeaderUnauthorized;
+extern const char *const HeaderWrongVersion;
+extern const char *const HeaderNotImplemented;
+
 extern const char *const EndOfHeader;
 extern const char *const RequestMsgMask;
 
@@ -78,13 +88,8 @@ void init_connection_item(Connection *item, int socket_descriptor, uint32_t id);
 Connection *create_connection_item(int socket_descriptor, uint32_t id);
 void free_connection_item(Connection *item);
 
-/* Blocking functions */
-int32_t send_header_blocking(Connection *item);
-int32_t receive_request_blocking(Connection *item);
-
 /* Receive function set */
 int32_t receive_request(Connection *item, const uint32_t transmission_rate);
-int32_t receive_data_from_put(Connection *item, const uint32_t transmission_rate);
 
 /* Send function set */
 int32_t send_response(Connection *item, uint32_t transmission_rate);
@@ -94,13 +99,24 @@ int32_t send_resource(Connection *item, const int32_t transmission_rate);
 /* Utils */
 int32_t get_resource_data(Connection *item, char *file_name, char *mime);
 void setup_header(Connection *item, char *mime);
-int8_t is_active(Connection *item);
 void handle_request(Connection *item, char *path);
 
 int32_t handle_get_method(Connection *item, char *file_name);
 int32_t handle_put_method(Connection *item, char *file_name);
 int32_t get_file_state(Connection *item);
 int32_t extract_content_length_from_header(Connection *item);
+
+/*PUT related functions*/
+void write_data_into_file(Connection *item,
+                          FILE *resource_file);
+
+int32_t receive_data_from_put(Connection *item,
+                              const uint32_t transmission_rate);
+
+void queue_request_to_write(Connection *item,
+                            request_manager *manager);
+
+void receive_from_thread_write(Connection *item);
 
 /* Thread related functions */
 void queue_request_to_read(Connection *item,
@@ -110,12 +126,8 @@ void queue_request_to_read(Connection *item,
 void queue_request_to_write(Connection *item,
                             request_manager *manager);
 
-void receive_from_thread(Connection *item, const uint32_t transmission_rate);
+void receive_from_thread_read(Connection *item, const uint32_t transmission_rate);
 void receive_from_thread_write(Connection *item);
-
-int32_t read_data_from_file(Connection *item, const uint32_t transmission_rate);
-void write_data_into_file(Connection *item,
-                          FILE *resource_file);
 
 void verify_connection_state(Connection *item);
 
