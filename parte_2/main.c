@@ -242,9 +242,10 @@ int main(int argc, char **argv)
                                 &internal_error_file,
                                 &unauthorized_file,
                                 &wrong_version_file,
-                                &not_implemented_file);
+                                &not_implemented_file,
+                                &forbidden_file);
 
-  const int32_t number_of_connections     = 200;
+  const int32_t number_of_connections     = 100;
   if( setup_listening_connection(port, &listening_sock_description) == -1 )
   {
     success = -1;

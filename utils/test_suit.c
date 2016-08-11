@@ -69,7 +69,8 @@ int32_t test_verify_path()
   char *resourceWrong = "/index3.html";
 
   char full_path[PATH_MAX];
-  if (verify_file_path( path, resourceOk, full_path) != 0)
+  setup_file_path(path, resourceOk, full_path);
+  if (verify_file_path(path, full_path) != 0)
   {
     printf("Error test Ok");
     return 1;
@@ -81,25 +82,15 @@ int32_t test_verify_path()
     return 1;
   }
 
-  if (verify_file_path( path, resourceWrongWithReturn, full_path) == 0)
+  setup_file_path(path, resourceWrongWithReturn, full_path);
+  if (verify_file_path(path, full_path) == 0)
   {
     printf("Error test Ok");
     return 1;
   }
 
-  if (verify_file_path( path, resourceOkWithReturn, full_path) != 0)
-  {
-    printf("Error test Ok");
-    return 1;
-  }
-
-  if (strncmp(test_return,full_path, strlen(test_return)) != 0 )
-  {
-    printf("Error test Ok");
-    return 1;
-  }
-
-  if (verify_file_path( path, resourceOkWithReturn2, full_path) != 0)
+  setup_file_path(path, resourceOkWithReturn, full_path);
+  if (verify_file_path(path, full_path) != 0)
   {
     printf("Error test Ok");
     return 1;
@@ -111,7 +102,21 @@ int32_t test_verify_path()
     return 1;
   }
 
-  if (verify_file_path( path, resourceWrong, full_path) == 0)
+  setup_file_path(path, resourceOkWithReturn2, full_path);
+  if (verify_file_path(path, full_path) != 0)
+  {
+    printf("Error test Ok");
+    return 1;
+  }
+
+  if (strncmp(test_return,full_path, strlen(test_return)) != 0 )
+  {
+    printf("Error test Ok");
+    return 1;
+  }
+
+  setup_file_path(path, resourceWrong, full_path);
+  if (verify_file_path(path, full_path) == 0)
   {
     printf("Error test Ok");
     return 1;
