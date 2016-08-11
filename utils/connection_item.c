@@ -230,13 +230,13 @@ void handle_request(Connection *item, char *path)
   char operation[OPERATION_SIZE];
   char resource[MAX_RESOURCE_SIZE];
   char protocol[PROTOCOL_SIZE];
-  char file_name[PATH_MAX];
+  char file_final_path[PATH_MAX];
   char mime[MAX_MIME_SIZE];
 
   memset(operation, '\0', OPERATION_SIZE);
   memset(resource,  '\0', MAX_RESOURCE_SIZE);
   memset(protocol,  '\0', PROTOCOL_SIZE);
-  memset(file_name, '\0', PROTOCOL_SIZE);
+  memset(file_final_path, '\0', PROTOCOL_SIZE);
 
   char *request = item->request;
   /*item->resource_file = NULL;*/
@@ -267,7 +267,7 @@ void handle_request(Connection *item, char *path)
     goto exit_handle;
   }
 
-  if (verify_file_path(path, resource, file_name) != 0)
+  if (verify_file_path(path, resource, file_final_path) != 0)
   {
     item->header = strdup(HeaderNotFound);
     item->file_components.file_ptr = not_found_file;
@@ -277,14 +277,14 @@ void handle_request(Connection *item, char *path)
 
   if (strncmp(operation, "GET", OPERATION_SIZE) == 0)
   {
-    if (handle_get_method(item, file_name) != 0 )
+    if (handle_get_method(item, file_final_path) != 0 )
     {
       goto exit_handle;
     }
   }
   else if (strncmp(operation, "PUT", OPERATION_SIZE) == 0)
   {
-    if (handle_put_method(item, file_name) != 0)
+    if (handle_put_method(item, file_final_path) != 0)
     {
       goto exit_handle;
     }
@@ -302,7 +302,7 @@ void handle_request(Connection *item, char *path)
 exit_handle:
   if (item->file_components.file_ptr != NULL)
   {
-    get_resource_data(item, file_name, mime);
+    get_resource_data(item, file_final_path, mime);
   }
 
   if (item->error == 0)

@@ -12,10 +12,9 @@ const char * const PutMark        = ".~put";
 
 #define PutMarkSize 5
 
-int file_exist( char *file_path)
+int file_exist(char *file_path, struct stat *file_stats)
 {
-  struct stat file_stats;
-  return (stat(file_path, &file_stats) == 0);
+  return (stat(file_path, file_stats) == 0);
 }
 
 
@@ -23,6 +22,14 @@ int32_t init_file_components(FileComponents *file,
                              char *file_path,
                              const int8_t flags)
 {
+  if (file == NULL)
+  {
+    printf("Trying to initialize a null FileComponent\n");
+    return FileComponentNull;
+  }
+
+  file->file_ptr = NULL;
+
   if (file_path == NULL ||
       file_path[0] == '\0')
   {
@@ -53,6 +60,11 @@ int32_t init_file_components(FileComponents *file,
     return CouldntOpen;
   }
 
+  if (!is_regular_file(file))
+  {
+    return NotARegularFile;
+  }
+
   return Success;
 }
 
@@ -68,12 +80,12 @@ int8_t write_treatment(FileComponents *file, char *file_path)
 {
   snprintf(file->file_path, PATH_MAX, "%s%s", file_path, PutMark);
 
-  if (file_exist(file->file_path))
+  if (file_exist(file->file_path, &(file->stats)))
   {
     return ExistentFile;
   }
 
-  if (file_exist(file_path))
+  if (file_exist(file_path, &(file->stats)))
   {
     file->is_new_file = 0;
   }
@@ -241,8 +253,28 @@ int32_t treat_file_after_put(FileComponents *file, uint8_t error)
 }
 
 
-int32_t is_valid_file(FileComponents *file)
+uint8_t is_valid_file(FileComponents *file)
 {
-  int32_t  ret = (file->file_ptr == NULL) ? 0 : 1;
+  uint8_t  ret = (file->file_ptr == NULL) ? 0 : 1;
   return ret;
+}
+
+uint8_t is_regular_file(FileComponents *file)
+{
+  if (!S_ISREG(file->stats.st_mode))
+  {
+    return 0;
+  }
+
+  return 1;
+}
+
+uint8_t is_directory(FileComponents *file)
+{
+  if (!S_ISDIR(file->stats.st_mode))
+  {
+    return 0;
+  }
+
+  return 1;
 }

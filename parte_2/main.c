@@ -188,7 +188,7 @@ int terminate = 0;
 
 void handle_sigint(int signal_number)
 {
-  printf("signal free1");
+  printf("Signal %d\n", signal_number);
 
   terminate = 1;
 
@@ -302,7 +302,6 @@ int main(int argc, char **argv)
    if ((ret == -1) || FD_ISSET(listening_sock_description, &except_fds) )
     {
       perror("select error");
-      printf("teste");
       success = -1;
       goto exit;
     }
@@ -384,14 +383,12 @@ int main(int argc, char **argv)
 
       if (ptr->state == WritingIntoFile)
       {
-        //write_data_into_file(ptr, ptr->file_components.file_ptr);
         queue_request_to_write(ptr, &req_manager);
       }
 
       if (ptr->state == ReadingFromFile)
       {
         queue_request_to_read(ptr, &req_manager, transmission_rate);
-        //read_data_from_file(ptr, transmission_rate);
       }
 
       if (ptr->state == WaitingFromIORead)

@@ -552,5 +552,8 @@ int32_t set_socket_timeout(int socked_descriptor, struct timeval *timeout)
   if (setsockopt(socked_descriptor, SOL_SOCKET, SO_RCVTIMEO, timeout, sizeof(*timeout)) < 0)
   {
     perror("Error");
+    return -1;
   }
+
+  return 0;
 }
