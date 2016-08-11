@@ -33,6 +33,7 @@ typedef struct file_struct
   char        file_path[PATH_MAX];
   uint8_t     is_new_file;
   struct stat stats;
+
 }FileComponents;
 
 int32_t init_file_components(FileComponents *file,
@@ -44,10 +45,12 @@ int32_t destroy_file_components(FileComponents *file);
 void read_treatment(FileComponents *file, char *file_path);
 int8_t write_treatment(FileComponents *file, char *file_path);
 
-int8_t  verify_file_path(char *path, char *resource, char *full_path);
+void setup_file_path(char *base_path, char *resource, char *full_path);
+int8_t verify_file_path(char *base_path, char *full_path);
 int32_t get_file_mime(uint32_t full_path_size, char *full_path, char *mime);
 int32_t treat_file_after_put(FileComponents *file, uint8_t error);
 
+uint8_t get_file_stats(char *file_path, struct stat *file_stats);
 uint8_t is_valid_file(FileComponents *file);
 uint8_t is_regular_file(FileComponents *file);
 uint8_t is_directory(FileComponents *file);

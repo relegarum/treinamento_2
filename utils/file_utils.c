@@ -12,11 +12,6 @@ const char * const PutMark        = ".~put";
 
 #define PutMarkSize 5
 
-int file_exist(char *file_path, struct stat *file_stats)
-{
-  return (stat(file_path, file_stats) == 0);
-}
-
 
 int32_t init_file_components(FileComponents *file,
                              char *file_path,
@@ -35,6 +30,13 @@ int32_t init_file_components(FileComponents *file,
   {
     printf("Wrong file path\n");
     return FilePathNull;
+  }
+
+  get_file_stats(file_path, &(file->stats));
+
+  if (!is_regular_file(file))
+  {
+    return NotARegularFile;
   }
 
   if (flags & ReadFile)
@@ -60,11 +62,6 @@ int32_t init_file_components(FileComponents *file,
     return CouldntOpen;
   }
 
-  if (!is_regular_file(file))
-  {
-    return NotARegularFile;
-  }
-
   return Success;
 }
 
@@ -80,12 +77,12 @@ int8_t write_treatment(FileComponents *file, char *file_path)
 {
   snprintf(file->file_path, PATH_MAX, "%s%s", file_path, PutMark);
 
-  if (file_exist(file->file_path, &(file->stats)))
+  if (get_file_stats(file->file_path, &(file->stats)))
   {
     return ExistentFile;
   }
 
-  if (file_exist(file_path, &(file->stats)))
+  if (get_file_stats(file_path, &(file->stats)))
   {
     file->is_new_file = 0;
   }
@@ -109,7 +106,7 @@ int32_t destroy_file_components(FileComponents *file)
   return 0;
 }
 
-int8_t verify_file_path(char *path, char *resource, char *full_path)
+void setup_file_path(char *base_path, char *resource, char *full_path)
 {
   int32_t resource_size = strlen(resource);
   if ((strncmp(resource, "/", resource_size) == 0) ||
@@ -119,15 +116,23 @@ int8_t verify_file_path(char *path, char *resource, char *full_path)
   }
 
   resource_size = strlen(resource);
-  const int32_t path_size      = strlen(path);
+  const int32_t path_size      = strlen(base_path);
   const int32_t file_name_size = path_size + resource_size + 1;
+
+  snprintf(full_path, file_name_size, "%s%s", base_path, resource);
+}
+
+int8_t verify_file_path(char *base_path, char *full_path)
+{
   char real_path[PATH_MAX];
+
+  const int32_t path_size = strlen(base_path);
+
   memset(real_path, '\0', PATH_MAX);
-  snprintf(full_path, file_name_size, "%s%s", path, resource);
   realpath(full_path, real_path); /**/
   if (*real_path != '\0')
   {
-    if (strncmp(path, real_path, path_size) != 0)
+    if (strncmp(base_path, real_path, path_size) != 0)
     {
       char work_directory[PATH_MAX];
       if (getcwd(work_directory, PATH_MAX)!= NULL)
@@ -252,6 +257,10 @@ int32_t treat_file_after_put(FileComponents *file, uint8_t error)
   }
 }
 
+uint8_t get_file_stats(char *file_path, struct stat *file_stats)
+{
+  return (stat(file_path, file_stats) == 0);
+}
 
 uint8_t is_valid_file(FileComponents *file)
 {
