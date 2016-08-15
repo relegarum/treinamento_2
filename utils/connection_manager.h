@@ -15,4 +15,6 @@ void add_connection_in_list(ConnectionManager *manager, Connection *new_item);
 void remove_connection_in_list(ConnectionManager *manager, Connection *item);
 void free_list(ConnectionManager *manager);
 
+int get_greatest_socket_descriptor(ConnectionManager *manager);
+
 #endif

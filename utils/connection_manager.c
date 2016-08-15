@@ -19,7 +19,7 @@ void add_connection_in_list(ConnectionManager *manager, Connection *new_item)
 
 void remove_connection_in_list(ConnectionManager *manager, Connection *item)
 {
-  if( item == NULL)
+  if (item == NULL)
   {
     printf("\nNull connection cannot be removed\n");
     return;
@@ -78,4 +78,26 @@ ConnectionManager create_manager()
   ConnectionManager manager;
   init_list(&manager);
   return manager;
+}
+
+int get_greatest_socket_descriptor(ConnectionManager *manager)
+{
+  int greatest = 0;
+  Connection *ptr = manager->head;
+  while (ptr != NULL)
+  {
+    if (ptr->socket_descriptor > greatest)
+    {
+      greatest = ptr->socket_descriptor;
+    }
+
+    if (ptr->datagram_socket > greatest)
+    {
+      greatest = ptr->datagram_socket;
+    }
+
+    ptr = ptr->next_ptr;
+  }
+
+  return greatest;
 }
