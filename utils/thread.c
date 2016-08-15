@@ -33,28 +33,32 @@ void *do_thread(void *arg)
   thread *this_thread = (thread *)(arg);
   request_manager *manager = this_thread->manager;
   int32_t         id       = this_thread->id;
+  request_list_node *item  = NULL;
 
   while (1)
   {
     pthread_mutex_lock(&(manager->mutex));
-    while (manager->size == 0)
     {
-      pthread_cond_wait(&(manager->conditional_variable), &(manager->mutex));
-      if (manager->exit > 0)
+      while (manager->size == 0)
       {
-        --(manager->number_of_threads);
-        pthread_mutex_unlock(&(manager->mutex));
+        pthread_cond_wait(&(manager->conditional_variable), &(manager->mutex));
+        if (manager->exit)
+        {
+          --(manager->number_of_threads);
+          pthread_mutex_unlock(&(manager->mutex));
 
-        printf("Thread dying: %d\n", id);
-        return NULL;
+          printf("Thread dying: %d\n", id);
+          return NULL;
+        }
       }
-    }
 
-    request_list_node *item = manager->head;
-    remove_request_in_list(manager, item);
+      item = manager->head;
+      remove_request_in_list(manager, item);
+    }
     pthread_mutex_unlock(&(manager->mutex));
 
     handle_request_item(item /*, id*/);
+    destroy_node(item);
   }
 }
 
@@ -69,7 +73,6 @@ void handle_request_item(request_list_node *item /*,int32_t id */)
   {
     write_into_file(item);
   }
-  destroy_node(item);
 }
 
 void read_from_file(request_list_node *item)
@@ -83,13 +86,17 @@ void read_from_file(request_list_node *item)
 
   if (read_data < 0)
   {
-    perror("Read error");
+    printf("fread error\n");
+    perror(__FUNCTION__);
   }
-
-  /*printf("thread %d\n", id);*/
-  if (write(item->datagram_socket, item->buffer, read_data) < 0)
+  else
   {
-    perror(" sendto error:");
+    /*printf("thread %d\n", id);*/
+    if (write(item->datagram_socket, item->buffer, read_data) < 0)
+    {
+      printf("write error\n");
+      perror(__FUNCTION__);
+    }
   }
 }
 
@@ -111,6 +118,7 @@ void write_into_file(request_list_node *item)
 
   if (write(item->datagram_socket, &data_wrote, sizeof(data_wrote)) < 0)
   {
-    perror(" sendto error:");
+    printf("write error\n");
+    perror(__FUNCTION__);
   }
 }
