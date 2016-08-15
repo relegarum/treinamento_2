@@ -9,6 +9,7 @@
 #include <time.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include <sys/select.h>
 
 #include "file_utils.h"
 
@@ -44,8 +45,10 @@ enum ConnectionStates
   WaitingFromIORead  =  8,
   WaitingFromIOWrite =  9,
   ReceivingFromPut   =  10,
+  TreatingGetMethod  =  11,
+  TreatingPutMethod  =  12,
   FirsState          = Closed,
-  LastState          = ReceivingFromPut
+  LastState          = TreatingPutMethod
 };
 
 enum ConnectionMethods
@@ -66,10 +69,10 @@ typedef struct ConnectionStruct
   uint64_t        wrote_data;
   uint64_t        resource_size;
   uint64_t        partial_read;
-  uint32_t        partial_wrote;
-  uint32_t        read_file_data;
-  uint32_t        data_to_write_size;
-  uint32_t        method;
+  uint64_t        partial_wrote;
+  uint64_t        read_file_data;
+  uint64_t        data_to_write_size;
+  uint8_t         method;
   uint8_t         tries;
   int32_t         datagram_socket;
   char            buffer[BUFSIZ];
@@ -101,33 +104,47 @@ int32_t send_resource(Connection *item, const int32_t transmission_rate);
 int32_t get_resource_data(Connection *item, char *file_name, char *mime);
 void setup_header(Connection *item, char *mime);
 void handle_request(Connection *item, char *path);
+void handle_new_socket(int new_socket_description,
+                       fd_set *master,
+                       int *greatest_socket_description);
 
-int32_t handle_get_method(Connection *item, char *file_name);
-int32_t handle_put_method(Connection *item, char *file_name);
+void close_socket(int *socket,
+                  fd_set *master);
+
+int32_t handle_get_method(Connection *item, char *resource, char *full_path);
+int32_t handle_put_method(Connection *item, char *resouce, char *full_path);
 int32_t get_file_state(Connection *item);
 int32_t extract_content_length_from_header(Connection *item);
 
 /*PUT related functions*/
-void write_data_into_file(Connection *item,
-                          FILE *resource_file);
+/*void write_data_into_file(Connection *item,
+                          FILE *resource_file);*/
 
 int32_t receive_data_from_put(Connection *item,
                               const uint32_t transmission_rate);
 
 void queue_request_to_write(Connection *item,
-                            request_manager *manager);
+                            request_manager *manager,
+                            fd_set *master,
+                            int *greatest_socket_description);
 
 void receive_from_thread_write(Connection *item);
 
 /* Thread related functions */
 void queue_request_to_read(Connection *item,
                            request_manager *manager,
-                           const uint32_t transmission_rate);
+                           const uint32_t transmission_rate,
+                           fd_set *master,
+                           int *greatest_socket_description);
 
 void queue_request_to_write(Connection *item,
-                            request_manager *manager);
+                            request_manager *manager,
+                            fd_set *master,
+                            int *greatest_socket_description);
 
-void receive_from_thread_read(Connection *item, const uint32_t transmission_rate);
+void receive_from_thread_read(Connection *item,
+                              const uint32_t transmission_rate);
+
 void receive_from_thread_write(Connection *item);
 
 void verify_connection_state(Connection *item);
