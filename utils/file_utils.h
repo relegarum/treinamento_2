@@ -36,7 +36,9 @@ typedef struct file_struct
 
 }FileComponents;
 
-int32_t init_file_components(FileComponents *file,
+
+void init_file_components(FileComponents *file);
+int32_t set_file_components(FileComponents *file,
                              char *file_path,
                              const int8_t flags);
 

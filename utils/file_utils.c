@@ -13,7 +13,14 @@ const char * const PutMark        = ".~put";
 #define PutMarkSize 5
 
 
-int32_t init_file_components(FileComponents *file,
+void init_file_components(FileComponents *file)
+{
+  file->file_path[0] = '\0';
+  file->file_ptr     = NULL;
+  file->is_new_file  = 0;
+}
+
+int32_t set_file_components(FileComponents *file,
                              char *file_path,
                              const int8_t flags)
 {
@@ -34,17 +41,22 @@ int32_t init_file_components(FileComponents *file,
 
   get_file_stats(file_path, &(file->stats));
 
-  if (!is_regular_file(file))
-  {
-    return NotARegularFile;
-  }
-
   if (flags & ReadFile)
   {
+    if (!is_regular_file(file))
+    {
+      return NotARegularFile;
+    }
+
     read_treatment(file, file_path);
   }
   else if (flags & WriteFile)
   {
+    if (is_directory(file))
+    {
+      return NotARegularFile;
+    }
+
     int8_t ret = write_treatment(file, file_path);
     if (ret == ExistentFile)
     {
@@ -147,6 +159,11 @@ int8_t verify_file_path(char *base_path, char *full_path)
         goto clear_full_path;
       }
     }
+
+    if (strncmp(real_path, full_path, strlen(full_path)) != 0)
+    {
+      goto clear_full_path;
+    }
   }
   else
   {
@@ -222,10 +239,13 @@ int32_t erase_put_mark(FileComponents *file)
 
 int32_t remove_file(FileComponents *file)
 {
-  if (remove(file->file_path) < 0)
+  if (file->file_ptr != NULL)
   {
-    perror("remove file:");
-    return -1;
+    if (remove(file->file_path) < 0)
+    {
+      printf("remove file:");
+      return -1;
+    }
   }
   return 0;
 }
@@ -244,15 +264,15 @@ int32_t treat_file_after_put(FileComponents *file, uint8_t error)
     return -1;
   }
 
-  fclose(file->file_ptr);
-  file->file_ptr = NULL;
-
   if (error)
   {
     return remove_file(file);
   }
   else
   {
+    fclose(file->file_ptr);
+    file->file_ptr = NULL;
+
     return erase_put_mark(file);
   }
 }
