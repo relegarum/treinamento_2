@@ -20,7 +20,7 @@ typedef struct request_list_node_struct
   char     buffer[BUFSIZ];
   uint8_t  operation;
   uint32_t data_size;
-  uint32_t offset;
+  uint64_t offset;
 
   /*SOCK_DGRAM*/
   int    datagram_socket;
@@ -35,21 +35,21 @@ typedef struct request_list_node_struct
 request_list_node* create_request_to_read(FILE* file,
                                           int32_t datagram_socket,
                                           uint32_t data_size,
-                                          uint32_t offset);
+                                          uint64_t offset);
 
 
 request_list_node *create_request_to_write(FILE *file,
                                            char *buffer,
                                            int32_t datagram_socket,
                                            uint32_t data_size,
-                                           uint32_t offset);
+                                           uint64_t offset);
 
 void init_node(request_list_node *node,
                FILE *file,
                char *buffer,
                int32_t datagram_socket,
                uint32_t data_size,
-               uint32_t offset,
+               uint64_t offset,
                uint8_t operation);
 
 void destroy_node(request_list_node *node);
