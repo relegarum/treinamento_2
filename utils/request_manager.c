@@ -86,9 +86,9 @@ void remove_request_in_list(request_manager *manager, request_list_node *item)
   }
 }
 
-
 void free_request_list(request_manager *manager)
 {
+  pthread_mutex_lock(&(manager->mutex));
   while(manager->head != NULL)
   {
     request_list_node *head = (manager->head);
@@ -100,18 +100,16 @@ void free_request_list(request_manager *manager)
   manager->tail = NULL;
   manager->exit = 1;
 
+  pthread_mutex_unlock(&(manager->mutex));
+
   printf("\n ****signal to threads***.\n");
   while (manager->number_of_threads > 0)
   {
+    pthread_mutex_lock(&(manager->mutex));
     pthread_cond_broadcast(&(manager->conditional_variable));
     usleep(100);
+    pthread_mutex_unlock(&(manager->mutex));
   }
-
-  /*while(manager->number_of_threads > 0)
-  {
-    printf("\n----------waitin\n");
-    usleep(100);
-  }*/
 
   pthread_cond_destroy(&(manager->conditional_variable));
   pthread_mutex_destroy(&(manager->mutex));
