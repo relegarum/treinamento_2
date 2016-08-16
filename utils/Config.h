@@ -9,11 +9,12 @@
 #include <stdint.h>
 #include <string>
 
-#include <QJsonObject>
+#include <QJsonDocument>
 
-#define DEFAULT_PORT  2196
-#define BASE_PATH     "."
-#define DEFAULT_SPEED 1024*1024*10
+#define DEFAULT_PORT     2196
+#define BASE_PATH        "."
+#define DEFAULT_SPEED    1024*1024*10
+#define CONFIG_FILE_NAME "../build_server/config.json"
 
 namespace server
 {
@@ -24,21 +25,27 @@ namespace server
             const uint16_t port        = DEFAULT_PORT,
             const uint64_t speed       = DEFAULT_SPEED);
 
-    std::string GetBasePath() const;
-    uint16_t    GetPort()     const;
-    uint64_t    GetSpeed()    const;
+    std::string getBasePath() const;
+    uint16_t    getPort()     const;
+    uint64_t    getSpeed()    const;
 
-    void SetBasePath(const std::string& basePath);
-    void SetPort(const uint16_t port);
-    void SetSpeed(const uint64_t speed);
+    void setBasePath(const std::string& basePath);
+    void setPort(const uint16_t port);
+    void setSpeed(const uint64_t speed);
+    void setConfigFileName(const std::string& configFileName);
 
-    void Write(QJsonObject& jsonObject);
-    void Read(const QJsonObject &jsonObject);
+    void write();
+    void read();
 
   private:
-    std::string mBasePath;
-    uint16_t    mPort;
-    uint64_t    mSpeed;
+    std::string   mBasePath;
+    uint16_t      mPort;
+    int32_t       mSpeed;
+    std::string   mConfigFileName;
+
+    static const QString LabelSpeed;
+    static const QString LabelPort;
+    static const QString LabelBasePath;
   };
 }
 

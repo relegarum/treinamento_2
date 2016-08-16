@@ -24,5 +24,4 @@ void handle_request_item(request_list_node *item);
 void read_from_file(request_list_node *item);
 void write_into_file(request_list_node *item);
 
-
 #endif /* THREAD_H*/

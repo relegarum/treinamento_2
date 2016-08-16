@@ -7,7 +7,7 @@ QT     += widgets
 QMAKE_CXXFLAGS += -std=c++0x -pthread
 LIBS += -pthread
 
-SOURCES += main.c \
+SOURCES += \
     ../utils/http_utils.c \
     ../utils/connection_item.c \
     ../utils/connection_manager.c \
@@ -16,8 +16,8 @@ SOURCES += main.c \
     ../utils/request_list.c \
     ../utils/request_manager.c \
     ../utils/thread.c \
-    ../Viewer/main_form.cpp \
-    ../utils/Config.cpp
+    ../utils/Config.cpp \
+    main.c
 
 HEADERS += \
     ../utils/http_utils.h \
@@ -28,7 +28,6 @@ HEADERS += \
     ../utils/request_list.h \
     ../utils/request_manager.h \
     ../utils/thread.h \
-    ../Viewer/main_form.h \
     ../utils/Config.h
 
 DISTFILES += \
@@ -36,5 +35,4 @@ DISTFILES += \
     ../build_server/script_test_with_put.py \
     ../build_server/put_get_test.py
 
-FORMS += \
-    ../Viewer/main_form.ui
+FORMS +=

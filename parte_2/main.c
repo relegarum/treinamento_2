@@ -37,6 +37,7 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 
+
 #include "../utils/connection_manager.h"
 #include "../utils/connection_item.h"
 #include "../utils/http_utils.h"
@@ -111,7 +112,7 @@ int32_t handle_arguments(int argc,
   }
   else
   {
-    char *end_ptr = "\0";
+    char *end_ptr = '\0';
     *transmission_rate = strtol(argv[index_of_transmission_rate], &
                                 end_ptr, 10);
     if (*transmission_rate <= 0)
@@ -181,6 +182,7 @@ int main(int argc, char **argv)
   start_thread_pool(thread_pool, NUMBER_OF_THREADS);
 
 
+  const int32_t number_of_connections     = 300;
   int success = 0;
   if (handle_arguments(argc, argv, &port, path, &transmission_rate) == -1)
   {
@@ -190,7 +192,6 @@ int main(int argc, char **argv)
 
   create_default_response_files(path);
 
-  const int32_t number_of_connections     = 300;
   if (setup_listening_connection(port, &listening_sock_description) == -1)
   {
     success = -1;
@@ -398,7 +399,7 @@ int main(int argc, char **argv)
       else
       {
         ptr = ptr->next_ptr;
-      }      
+      }
     }
 
     useconds_t time_to_sleep = calculate_time_to_sleep(&manager,
