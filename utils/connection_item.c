@@ -777,11 +777,6 @@ int32_t receive_data_from_put(Connection *item, const uint32_t transmission_rate
     item->partial_read   += bytes_received;
   } while((rate != total_bytes_received));
 
-  /*if (item->read_data >= item->header_size )
-  {
-    return fail;
-  }*/
-
   if (end_of_resource &&
       item->read_data >= item->resource_size)
   {

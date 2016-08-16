@@ -7,8 +7,9 @@ import time
 PORT  = "2196"
 IP = "localhost"
 
-file_urls = IP +':' + PORT + '/ahoy.iso'
+file_urls = IP +':' + PORT + '/index.html'
 #file_urls = [IP +':' + PORT + '/pdfs/evolucaoDosCodecs.pdf',
+:q
 #            IP + ':' + PORT + '/imgs/lena.jpeg',
 #            IP +':' + PORT + '/imgs/mandrill.png',
 #            IP +':' + PORT + '/teste_300mb.iso',

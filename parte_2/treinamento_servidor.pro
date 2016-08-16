@@ -26,4 +26,7 @@ HEADERS += \
     ../utils/request_manager.h \
     ../utils/thread.h
 
-DISTFILES +=
+DISTFILES += \
+    ../build_server/script_test.py \
+    ../build_server/script_test_with_put.py \
+    ../build_server/put_get_test.py

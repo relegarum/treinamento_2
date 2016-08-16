@@ -7,8 +7,8 @@ import time
 PORT  = "2196"
 IP = "localhost"
 
-download_file = '/index.html'
-upload_file   = 'teste.tar.put'
+download_file = '/suse_default.iso'
+upload_file   = 'ahoy.iso'
 file_urls = IP +':' + PORT + download_file
 #file_urls = [IP +':' + PORT + '/pdfs/evolucaoDosCodecs.pdf',
 #            IP + ':' + PORT + '/imgs/lena.jpeg',
@@ -29,10 +29,10 @@ def downloadFile(file_url, fileout_name,index):
     + fileout_name + "_" + str(index) )
   print('#### Download end ---> '+ str(index) +' - '+ fileout_name + " ") 
   os.system('cmp ' + fileout_name  + ' arquivos_download/' + fileout_name + '_' + str(index)) 
-for i in range(0,20):
+for i in range(0,1):
   print("-----------------------------------------------------")
-  #if i % 2 == 0:
-  if 0:
+  #if i % 3 != 0:
+  if 1:
     p = Process(target=downloadFile, args=(file_urls,file_urls[file_urls.rfind('/')+1:],i, ))
     p.start()
   else:

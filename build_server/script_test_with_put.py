@@ -6,7 +6,7 @@ import time
 
 PORT  = "2196"
 IP = "10.4.11.2"
-put_file = 'suse_default.iso'
+put_file = 'ahoy.iso'
 file_urls = 'http://' + IP +':' + PORT + '/' + put_file
 #file_urls = [IP +':' + PORT + '/pdfs/evolucaoDosCodecs.pdf',
 #            IP + ':' + PORT + '/imgs/lena.jpeg',
@@ -27,7 +27,7 @@ def download_file(file_url, fileout_name, i):
 
 os.system('rm arquivos_download/*')
 
-for i in range(0,4):
+for i in range(0,8):
   print("-----------------------------------------------------")
   if (i % 2 == 0):
     p = Process(target=download_file,args=(file_urls,file_urls[file_urls.rfind('/')+1:],i, ))
