@@ -17,6 +17,7 @@ typedef struct thread_struct
 void init_thread(thread *this_thread, request_manager *manager, int32_t id);
 void start_thread(thread *this_thread);
 void start_thread_pool(thread *thread_pool, const uint32_t pool_size);
+void join_thread_pool(thread *thread_pool, const uint32_t pool_size);
 /*void clean_thread(thread *this);*/
 void *do_thread(void *arg);
 void handle_request_item(request_list_node *item);

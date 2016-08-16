@@ -1,3 +1,11 @@
+/* \file threads.c
+ *
+ * \brief Contem a implementacao das funcoes de manipulacao das threads assim
+ * como a acao executada pela thread em si: funcao do_thread
+ *
+ *
+ * "$Id: $"
+*/
 #include "thread.h"
 #include <unistd.h>
 #include <stdlib.h>
@@ -45,6 +53,7 @@ void *do_thread(void *arg)
         if (manager->exit)
         {
           --(manager->number_of_threads);
+          pthread_cond_broadcast(&(manager->conditional_variable));
           pthread_mutex_unlock(&(manager->mutex));
 
           printf("Thread dying: %d\n", id);
@@ -120,5 +129,15 @@ void write_into_file(request_list_node *item)
   {
     printf("write error\n");
     perror(__FUNCTION__);
+  }
+}
+
+
+void join_thread_pool(thread *thread_pool, const uint32_t pool_size)
+{
+  uint32_t index = 0;
+  for (index = 0; index < pool_size; ++index)
+  {
+    pthread_join(thread_pool[index].pthread, NULL);
   }
 }
