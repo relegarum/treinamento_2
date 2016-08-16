@@ -29,10 +29,10 @@ def downloadFile(file_url, fileout_name,index):
     + fileout_name + "_" + str(index) )
   print('#### Download end ---> '+ str(index) +' - '+ fileout_name + " ") 
   os.system('cmp ' + fileout_name  + ' arquivos_download/' + fileout_name + '_' + str(index)) 
-for i in range(0,1):
+for i in range(0,2):
   print("-----------------------------------------------------")
-  #if i % 3 != 0:
-  if 1:
+  if i % 2 != 0:
+  #if 1:
     p = Process(target=downloadFile, args=(file_urls,file_urls[file_urls.rfind('/')+1:],i, ))
     p.start()
   else:

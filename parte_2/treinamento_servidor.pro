@@ -14,7 +14,8 @@ SOURCES += main.c \
     ../utils/file_utils.c \
     ../utils/request_list.c \
     ../utils/request_manager.c \
-    ../utils/thread.c
+    ../utils/thread.c \
+    ../Viewer/main_form.cpp
 
 HEADERS += \
     ../utils/http_utils.h \
@@ -24,9 +25,13 @@ HEADERS += \
     ../utils/file_utils.h \
     ../utils/request_list.h \
     ../utils/request_manager.h \
-    ../utils/thread.h
+    ../utils/thread.h \
+    ../Viewer/main_form.h
 
 DISTFILES += \
     ../build_server/script_test.py \
     ../build_server/script_test_with_put.py \
     ../build_server/put_get_test.py
+
+FORMS += \
+    ../Viewer/main_form.ui
