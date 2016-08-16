@@ -1,3 +1,9 @@
+/* \file http_utils.c
+ *
+ * \brief Contem a implementacao de utilitarios relativos ao protocolo HTTP 1.0
+ *
+ * "$Id: $"
+*/
 #include "http_utils.h"
 #include "file_utils.h"
 
@@ -27,6 +33,14 @@ const char *HtmlNotImplementedFileName       = "NotImplemented.html";
 const char *HtmlForbiddenFileName            = "Forbidden.html";
 const char *HTTP10Str                = "HTTP/1.0";
 const char *HTTP11Str                = "HTTP/1.1";
+
+FILE *bad_request_file     = NULL;
+FILE *not_found_file       = NULL;
+FILE *internal_error_file  = NULL;
+FILE *unauthorized_file    = NULL;
+FILE *wrong_version_file   = NULL;
+FILE *not_implemented_file = NULL;
+FILE *forbidden_file       = NULL;
 
 uint32_t   g_id = 0;
 
@@ -301,7 +315,7 @@ int verify_connection(ConnectionManager *manager,
       add_connection_in_list(manager, item);
 
       handle_new_socket( new_socket_description, master, greatest_fds);
-      if (set_socket_as_nonblocking(new_socket_description))
+      if (set_socket_as_nonblocking(new_socket_description) != 0)
       {
         perror("set as nonblock");
         return -1;
@@ -314,10 +328,6 @@ int verify_connection(ConnectionManager *manager,
                 sizeof(remote_ip));*/
 
       //printf("Connection from %s -> socket_num = %d\n", remote_ip, new_socket_description);
-      /*if (new_socket_description > *greatest_fds)
-      {
-        *greatest_fds = new_socket_description;
-      }*/
     }
   }
   return 0;
@@ -349,39 +359,24 @@ int8_t create_file(FILE **file,
 
 void free_file(FILE **file)
 {
-  if (*file == NULL)
+  if (*file != NULL)
   {
     fclose(*file);
     *file = NULL;
   }
 }
 
-void create_default_response_files(char *path,
-                                   FILE **bad_request_file,
-                                   FILE **not_found_file,
-                                   FILE **internal_error_file,
-                                   FILE **unauthorized_file,
-                                   FILE **version_wrong_file,
-                                   FILE **not_implemented_file,
-                                   FILE **forbidden_file)
+void create_default_response_files(char *path)
 {
-
-  *bad_request_file     = NULL;
-  *not_found_file       = NULL;
-  *internal_error_file  = NULL;
-  *unauthorized_file    = NULL;
-  *version_wrong_file   = NULL;
-  *not_implemented_file = NULL;
-  *forbidden_file       = NULL;
-
+  printf("path %s", path);
   int32_t path_length = strlen(path);
-  create_file(bad_request_file,     HTML_ERROR(400, Bad Request),                path, path_length, HtmlBadRequestFileName);
-  create_file(internal_error_file,  HTML_ERROR(500, Internal Server Error),      path, path_length, HtmlInternalErrorName);
-  create_file(not_found_file,       HTML_ERROR(404, Not Found),                  path, path_length, HtmlNotFoundFileName);
-  create_file(unauthorized_file,    HTML_ERROR(401, Unauthorized),               path, path_length, HtmlUnauthorizedFileName);
-  create_file(version_wrong_file,   HTML_ERROR(505, HTTP Version Not Supported), path, path_length, HtmlWrongVersionFileName);
-  create_file(not_implemented_file, HTML_ERROR(501, HTTP Not Implemented),       path, path_length, HtmlNotImplementedFileName);
-  create_file(forbidden_file,       HTML_ERROR(403, HTTP Forbidden),             path, path_length, HtmlForbiddenFileName);
+  create_file(&bad_request_file,     HTML_ERROR(400, Bad Request),                path, path_length, HtmlBadRequestFileName);
+  create_file(&internal_error_file,  HTML_ERROR(500, Internal Server Error),      path, path_length, HtmlInternalErrorName);
+  create_file(&not_found_file,       HTML_ERROR(404, Not Found),                  path, path_length, HtmlNotFoundFileName);
+  create_file(&unauthorized_file,    HTML_ERROR(401, Unauthorized),               path, path_length, HtmlUnauthorizedFileName);
+  create_file(&wrong_version_file,   HTML_ERROR(505, HTTP Version Not Supported), path, path_length, HtmlWrongVersionFileName);
+  create_file(&not_implemented_file, HTML_ERROR(501, HTTP Not Implemented),       path, path_length, HtmlNotImplementedFileName);
+  create_file(&forbidden_file,       HTML_ERROR(403, HTTP Forbidden),             path, path_length, HtmlForbiddenFileName);
 }
 
 void clean_default_files()
