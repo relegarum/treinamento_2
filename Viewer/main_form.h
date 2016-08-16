@@ -7,13 +7,18 @@ namespace Ui {
   class main_form;
 }
 
-class main_form : public QDialog
+class MainForm : public QDialog
 {
   Q_OBJECT
 
 public:
-  explicit main_form(QWidget *parent = 0);
-  ~main_form();
+  explicit MainForm(QWidget *parent = 0);
+  ~MainForm();
+
+private slots:
+  void on_Signal_button_ui_accepted();
+
+  void on_Signal_button_ui_rejected();
 
 private:
   Ui::main_form *ui;
