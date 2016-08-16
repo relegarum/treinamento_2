@@ -1,3 +1,10 @@
+/* \file file_utils.c
+ *
+ * \brief Implementacao de funcoes relativas ao tratamento de arquivos
+ * necessarios ao servidor
+ *
+ * "$Id: $"
+*/
 #include "file_utils.h"
 
 #include <stdio.h>
@@ -18,6 +25,8 @@ void init_file_components(FileComponents *file)
   file->file_path[0] = '\0';
   file->file_ptr     = NULL;
   file->is_new_file  = 0;
+  memset(&(file->stats), 0, sizeof(file->stats));
+  file->should_delete = 1;
 }
 
 int32_t set_file_components(FileComponents *file,
@@ -115,6 +124,8 @@ int32_t destroy_file_components(FileComponents *file)
   }
 
   file->file_path[0] = '\0';
+  file->should_delete = 1;
+  memset(&(file->stats), 0, sizeof(file->stats));
   return 0;
 }
 
@@ -258,20 +269,17 @@ int32_t treat_file_after_put(FileComponents *file, uint8_t error)
     return -1;
   }
 
-  if (file->file_ptr == NULL)
-  {
-    printf("File is null\n");
-    return -1;
-  }
-
   if (error)
   {
     return remove_file(file);
   }
   else
   {
-    fclose(file->file_ptr);
-    file->file_ptr = NULL;
+    if (file->file_ptr != NULL)
+    {
+      fclose(file->file_ptr);
+      file->file_ptr = NULL;
+    }
 
     return erase_put_mark(file);
   }
@@ -300,6 +308,11 @@ uint8_t is_regular_file(FileComponents *file)
 
 uint8_t is_directory(FileComponents *file)
 {
+  if (file == NULL)
+  {
+    printf("file is null");
+  }
+
   if (!S_ISDIR(file->stats.st_mode))
   {
     return 0;

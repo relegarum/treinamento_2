@@ -1,3 +1,10 @@
+/* \file file_utils.c
+ *
+ * \brief Declaracao de funcoes relativas ao tratamento de arquivos
+ * necessarios ao servidor
+ *
+ * "$Id: $"
+*/
 #ifndef FILE_UTILS_H
 #define FILE_UTILS_H
 #include <stdint.h>
@@ -33,6 +40,7 @@ typedef struct file_struct
   char        file_path[PATH_MAX];
   uint8_t     is_new_file;
   struct stat stats;
+  uint8_t     should_delete;
 
 }FileComponents;
 
