@@ -1,3 +1,10 @@
+/* \file request_list.c
+ *
+ * \brief Contem a implementacao dos metodos manipulacao das requisicoes de IO
+ * feitas pela thread principal para as threads secundarias.
+ *
+ * "$Id: $"
+*/
 #include "request_list.h"
 
 #include <stdlib.h>
