@@ -45,6 +45,7 @@
 #include "../utils/test_suit.h"
 
 #define MAX_TIMEOUT 9999
+#define MAX_RETRIES 1000
 #define NUMBER_OF_THREADS 8
 
 ConnectionManager* manager_ptr = NULL;
@@ -120,81 +121,10 @@ int32_t handle_arguments(int argc,
     }
   }
 
+  printf("base path: %s\n", path);
   return 0;
 }
 
-useconds_t calculate_time_to_sleep(const ConnectionManager *manager,
-                                   const struct timeval *lowest,
-                                   const int8_t allinactive)
-{
-  if (manager->size != 0)
-  {
-    if (((manager->size == 1) &&
-         (manager->head->state == Free)) ||
-        !allinactive)
-    {
-      return 0;
-    }
-    struct timeval now;
-    gettimeofday(&now, 0);
-
-    struct timeval one_second_later;
-    one_second_later.tv_sec =  lowest->tv_sec + 1;
-    one_second_later.tv_usec = lowest->tv_usec;
-    if(timercmp(&one_second_later, &now, >))
-    {
-      struct timeval time_to_sleep;
-      timersub(&one_second_later, &now, &time_to_sleep);
-      return time_to_sleep.tv_usec;
-    }
-  }
-
-  return 0;
-}
-
-int32_t verify_if_has_to_exchange_data(Connection* item)
-{
-  struct timeval next;
-  next.tv_sec = item->last_connection_time.tv_sec + 1;
-  next.tv_usec = item->last_connection_time.tv_usec;
-  struct timeval now;
-  gettimeofday(&now, NULL);
-
-  return (timercmp(&now, &next, >));
-}
-
-void setup_deamon()
-{
-  pid_t pid;
-  pid_t sid;
-
-  pid = fork();
-  if (pid < 0)
-  {
-    exit(EXIT_FAILURE);
-  }
-
-  if (pid > 0)
-  {
-    exit(EXIT_SUCCESS);
-  }
-
-  umask(0);
-  sid = setsid();
-  if (sid < 0)
-  {
-    exit(EXIT_FAILURE);
-  }
-
-  if ((chdir("/")) < 0)
-  {
-    exit(EXIT_FAILURE);
-  }
-
-  close(STDIN_FILENO);
-  close(STDOUT_FILENO);
-  close(STDERR_FILENO);
-}
 
 int terminate = 0;
 
@@ -232,15 +162,13 @@ void handle_socket_destroy(int *socket,
 
 int main(int argc, char **argv)
 {
-  //test_rename();
-  //return 0;
-
-  /*setup_deamon();*/
+  //daemon(0 , 0);
   int32_t listening_sock_description = -1;
   int32_t transmission_rate    = 0;
 
   char *port = NULL;
   char path[PATH_MAX];
+  memset(path, '\0', PATH_MAX);
 
   ConnectionManager manager = create_manager();
   manager_ptr = &manager;
@@ -260,17 +188,10 @@ int main(int argc, char **argv)
     goto exit;
   }
 
-  create_default_response_files(path,
-                                &bad_request_file,
-                                &not_found_file,
-                                &internal_error_file,
-                                &unauthorized_file,
-                                &wrong_version_file,
-                                &not_implemented_file,
-                                &forbidden_file);
+  create_default_response_files(path);
 
   const int32_t number_of_connections     = 300;
-  if( setup_listening_connection(port, &listening_sock_description) == -1 )
+  if (setup_listening_connection(port, &listening_sock_description) == -1)
   {
     success = -1;
     goto exit;
@@ -417,7 +338,11 @@ int main(int argc, char **argv)
 
       if (ptr->state == ReadingFromFile)
       {
-        queue_request_to_read(ptr, &req_manager, transmission_rate, &master, &greatest_file_desc);
+        queue_request_to_read(ptr,
+                              &req_manager,
+                              transmission_rate,
+                              &master,
+                              &greatest_file_desc);
       }
 
       if (ptr->state == WaitingFromIORead &&
@@ -436,14 +361,13 @@ int main(int argc, char **argv)
       if (ptr->state == WaitingFromIOWrite &&
           FD_ISSET(ptr->datagram_socket, &read_fds))
       {
+
         receive_from_thread_write(ptr);
-        if (ptr->state != WaitingFromIOWrite)
-        {
-          handle_socket_destroy(&ptr->datagram_socket,
-                                &manager,
-                                &greatest_file_desc,
-                                &master);
-        }
+        handle_socket_destroy(&ptr->datagram_socket,
+                              &manager,
+                              &greatest_file_desc,
+                              &master);
+
       }
 
       if (timercmp(&(ptr->last_connection_time), &lowest, <))
@@ -493,12 +417,7 @@ exit:
 
   free_request_list(&req_manager);
   free_list(&manager);
-
-  int index = 0;
-  for (index = 0; index < NUMBER_OF_THREADS; ++index)
-  {
-    pthread_join(thread_pool[index].pthread, NULL);
-  }
+  join_thread_pool(thread_pool, NUMBER_OF_THREADS);
 
   if (listening_sock_description != -1)
   {
