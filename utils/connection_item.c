@@ -1,3 +1,10 @@
+/* \file connection_item.c
+ *
+ * \brief Contem a implementacao de funcoes de criacao e manipulacao de conexoes
+ * ativas.
+ *
+ * "$Id: $"
+*/
 #include "connection_item.h"
 
 #include <stdlib.h>
@@ -31,13 +38,13 @@
 const char * const HeaderBadRequest     = "HTTP/1.0 400 Bad Request\r\n\r\n";
 const char * const HeaderOk             = "HTTP/1.0 200 OK\r\n";
 const char * const HeaderCreated        = "HTTP/1.0 201 Created\r\n";
-const char * const HeaderConflict       = "HTTP/1.1 409 Conflict\r\n\r\n";
+const char * const HeaderConflict       = "HTTP/1.1 409 Conflict\r\n";
 const char * const HeaderNotFound       = "HTTP/1.0 404 Not Found\r\n\r\n";
 const char * const HeaderInternalError  = "HTTP/1.0 500 Internal Server Error\r\n\r\n";
 const char * const HeaderUnauthorized   = "HTTP/1.0 401 Unauthorized\r\n\r\n";
 const char * const HeaderWrongVersion   = "HTTP/1.0 505 HTTP Version Not Supported\r\n\r\n";
 const char * const HeaderNotImplemented = "HTTP/1.0 501 HTTP Not Implemented\r\n\r\n";
-const char * const HeaderForbidden      = "HTTP/1.0 403 HTTP Forbidden\r\n\r\n\r\n";
+const char * const HeaderForbidden      = "HTTP/1.0 403 HTTP Forbidden\r\n\r\n";
 const char * const EndOfHeader    = "\r\n\r\n";
 const char * const RequestMsgMask = "GET %s HTTP/1.0\r\n\r\n";
 
@@ -92,14 +99,15 @@ void free_connection_item(Connection *item)
     item->socket_descriptor = -1;
   }
 
-  if (!item->error)
+  if (item->file_components.should_delete)
   {
     destroy_file_components(&item->file_components);
-    if (item->header != NULL)
-    {
-      free(item->header);
-      item->header = NULL;
-    }
+  }
+
+  if (item->header != NULL)
+  {
+    free(item->header);
+    item->header = NULL;
   }
 
   if (item->request != NULL)
@@ -248,6 +256,7 @@ void handle_request(Connection *item, char *path)
   {
     item->header = strdup(HeaderBadRequest);
     item->file_components.file_ptr = bad_request_file;
+    item->file_components.should_delete = 0;
     item->error = 1;
     goto exit_handle;
   }
@@ -257,6 +266,7 @@ void handle_request(Connection *item, char *path)
   {
     item->header = strdup(HeaderWrongVersion);
     item->file_components.file_ptr = wrong_version_file;
+    item->file_components.should_delete = 0;
     item->error = 1;
     goto exit_handle;
   }
@@ -265,6 +275,7 @@ void handle_request(Connection *item, char *path)
   {
     item->header = strdup(HeaderBadRequest);
     item->file_components.file_ptr = bad_request_file;
+    item->file_components.should_delete = 0;
     item->error = 1;
     goto exit_handle;
   }
@@ -297,6 +308,7 @@ void handle_request(Connection *item, char *path)
   {
     item->header = strdup(HeaderNotImplemented);
     item->file_components.file_ptr = not_implemented_file;
+    item->file_components.should_delete = 0;
     item->error = 1;
     goto exit_handle;
   }
@@ -592,6 +604,7 @@ int32_t handle_get_method(Connection *item, char *path, char *full_path)
   {
     item->header = strdup(HeaderNotFound);
     item->file_components.file_ptr = not_found_file;
+    item->file_components.should_delete = 0;
     item->error = 1;
     return item->error;
   }
@@ -601,6 +614,7 @@ int32_t handle_get_method(Connection *item, char *path, char *full_path)
   {
     item->header = strdup(HeaderNotFound);
     item->file_components.file_ptr = not_found_file;
+    item->file_components.should_delete = 0;
     item->error = 1;
     return item->error;
   }
@@ -621,6 +635,7 @@ int32_t handle_put_method(Connection *item, char *path, char *full_path)
   {
     item->header = strdup(HeaderForbidden);
     item->file_components.file_ptr = forbidden_file;
+    item->file_components.should_delete = 0;
     item->error = 1;
     ret = 1;
     goto exit_handle;
@@ -637,6 +652,7 @@ int32_t handle_put_method(Connection *item, char *path, char *full_path)
   {
     item->header = strdup(HeaderForbidden);
     item->file_components.file_ptr = forbidden_file;
+    item->file_components.should_delete = 0;
     item->error = 1;
     goto exit_handle;
   }
@@ -644,6 +660,11 @@ int32_t handle_put_method(Connection *item, char *path, char *full_path)
   ret = extract_content_length_from_header(item);
 
  exit_handle:
+  if (item->error)
+  {
+    item->state = SendingHeader;
+  }
+
   if (item->data_to_write_size > 0)
   {
     item->state = WritingIntoFile;
@@ -664,6 +685,7 @@ int32_t get_file_state(Connection *item)
     {
       item->header = strdup(HeaderUnauthorized);
       item->file_components.file_ptr = unauthorized_file;
+      item->file_components.should_delete = 0;
       item->error         = 1;
       perror("access error");
       return -1;
@@ -673,6 +695,7 @@ int32_t get_file_state(Connection *item)
     {
       item->header = strdup(HeaderBadRequest);
       item->file_components.file_ptr = bad_request_file;
+      item->file_components.should_delete = 0;
       item->error         = 1;
       perror("too big");
       return -1;
@@ -681,6 +704,7 @@ int32_t get_file_state(Connection *item)
     {
       item->header = strdup(HeaderNotFound);
       item->file_components.file_ptr = not_found_file;
+      item->file_components.should_delete = 0;
       item->error         = 1;
       perror(__FUNCTION__);
       return -1;
@@ -801,47 +825,23 @@ void queue_request_to_write(Connection *item,
 void receive_from_thread_write(Connection *item)
 {
   uint32_t data_wrote = 0;
-  /*uint32_t rate = (BUFSIZ - 1 < transmission_rate)? BUFSIZ - 1: transmission_rate;*/
   int32_t read_data = read(item->datagram_socket, &data_wrote, sizeof(data_wrote));
   if (read_data < 0)
   {
-    if (errno == EAGAIN ||
-        errno == EWOULDBLOCK)
-    {
-      return;
-    }
-
     perror(__FUNCTION__);
-    if (errno == EBADF)
-    {
-      item->state = WritingIntoFile;
-    }
-    else
-    {
-      item->state = Sent;
-    }
+    item->state = Closed;
     return;
   }
 
-  if (data_wrote > 0)
+  if (data_wrote == 0)
   {
-    item->state = ReceivingFromPut;
-    item->wrote_data += data_wrote;
+    item->error = 1;
+    item->state = Closed;
+    return;
   }
-  else
-  {
-    if ((item->tries)++ < MAX_TRIES )
-    {
-      item->state = WaitingFromIOWrite;
-      return;
-    }
-    else
-    {
-      item->state  = SendingHeader;
-      item->header = strdup(HeaderInternalError);
-      item->error  = 1;
-    }    
-  }
+
+  item->state = ReceivingFromPut;
+  item->wrote_data += data_wrote;
 
   if (item->wrote_data >= item->resource_size)
   {
@@ -857,6 +857,15 @@ void receive_from_thread_write(Connection *item)
     item->wrote_data = 0;
     return;
   }
+}
 
-  //close(item->datagram_socket);
+int32_t verify_if_has_to_exchange_data(Connection* item)
+{
+  struct timeval next;
+  next.tv_sec = item->last_connection_time.tv_sec + 1;
+  next.tv_usec = item->last_connection_time.tv_usec;
+  struct timeval now;
+  gettimeofday(&now, NULL);
+
+  return (timercmp(&now, &next, >));
 }

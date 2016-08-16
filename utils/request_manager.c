@@ -1,3 +1,12 @@
+/* \file request_manager.c
+ *
+ * \brief Contem a implementacao das funcoes de manipulacao da lista de
+ * requisicoes a serem tratadas pelas threads. Como ela e o dado a ser
+ * compartilhado entre as thread, contem tambem os elementos de controle de
+ * concorrencia.
+ *
+ * "$Id: $"
+*/
 #include "request_manager.h"
 #include <unistd.h>
 #include <stdlib.h>
@@ -21,10 +30,8 @@ void init_request_list(request_manager *manager)
   manager->exit = 0;
 }
 
-
 void add_request_in_list(request_manager *manager, request_list_node *new_item)
 {
-  /*pthread_rwlock_wrlock(&(manager->lock));*/
   pthread_mutex_lock(&(manager->mutex));
   if (manager->head == NULL)
   {
@@ -39,11 +46,9 @@ void add_request_in_list(request_manager *manager, request_list_node *new_item)
   }
   ++(manager->size);
 
-  pthread_cond_broadcast(&(manager->conditional_variable));
+  pthread_cond_signal(&(manager->conditional_variable));
   pthread_mutex_unlock(&(manager->mutex));
-  /*pthread_rwlock_unlock(&(manager->lock));*/
 }
-
 
 void remove_request_in_list(request_manager *manager, request_list_node *item)
 {
@@ -100,17 +105,22 @@ void free_request_list(request_manager *manager)
   manager->tail = NULL;
   manager->exit = 1;
 
+  pthread_cond_broadcast(&(manager->conditional_variable));
   pthread_mutex_unlock(&(manager->mutex));
 
   printf("\n ****signal to threads***.\n");
-  while (manager->number_of_threads > 0)
+  pthread_mutex_lock(&(manager->mutex));
   {
-    pthread_mutex_lock(&(manager->mutex));
-    pthread_cond_broadcast(&(manager->conditional_variable));
-    usleep(100);
-    pthread_mutex_unlock(&(manager->mutex));
+    while (manager->number_of_threads != 0)
+    {
+      pthread_cond_wait(&(manager->conditional_variable), &(manager->mutex));
+      usleep(100);
+    }
+    pthread_cond_destroy(&(manager->conditional_variable));
   }
 
-  pthread_cond_destroy(&(manager->conditional_variable));
+  usleep(1000);
+  pthread_mutex_unlock(&(manager->mutex));
+
   pthread_mutex_destroy(&(manager->mutex));
 }

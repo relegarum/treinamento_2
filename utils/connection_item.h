@@ -1,3 +1,10 @@
+/* \file connection_item.c
+ *
+ * \brief Contem a declaracao de funcoes de criacao e manipulacao de conexoes
+ * ativas.
+ *
+ * "$Id: $"
+*/
 #ifndef CONNECTION_ITEM_H
 #define CONNECTION_ITEM_H
 
@@ -101,6 +108,7 @@ int32_t send_header(Connection *item, const uint32_t transmission_rate);
 int32_t send_resource(Connection *item, const int32_t transmission_rate);
 
 /* Utils */
+int32_t verify_if_has_to_exchange_data(Connection* item);
 int32_t get_resource_data(Connection *item, char *file_name, char *mime);
 void setup_header(Connection *item, char *mime);
 void handle_request(Connection *item, char *path);
@@ -148,14 +156,5 @@ void receive_from_thread_read(Connection *item,
 void receive_from_thread_write(Connection *item);
 
 void verify_connection_state(Connection *item);
-
-
-FILE *bad_request_file;
-FILE *not_found_file;
-FILE *internal_error_file;
-FILE *unauthorized_file;
-FILE *wrong_version_file;
-FILE *not_implemented_file;
-FILE *forbidden_file;
 
 #endif /* CONNECTION_ITEM_H*/

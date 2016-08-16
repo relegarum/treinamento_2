@@ -1,3 +1,12 @@
+/* \file request_manager.h
+ *
+ * \brief Contem a declaracao das funcoes de manipulacao da lista de
+ * requisicoes a serem tratadas pelas threads. Como ela e o dado a ser
+ * compartilhado entre as thread, contem tambem os elementos de controle de
+ * concorrencia.
+ *
+ * "$Id: $"
+*/
 #ifndef REQUEST_MANAGER_H
 #define REQUEST_MANAGER_H
 #include <pthread.h>
