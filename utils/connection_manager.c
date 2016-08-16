@@ -1,3 +1,10 @@
+/* \file connection_manager.c
+ *
+ * \brief Contem a implementacao funcoes de manipulacao da lista de conexoes
+ * ativas.
+ *
+ * "$Id: $"
+*/
 #include "connection_manager.h"
 #include <stdlib.h>
 
@@ -100,4 +107,33 @@ int get_greatest_socket_descriptor(ConnectionManager *manager)
   }
 
   return greatest;
+}
+
+useconds_t calculate_time_to_sleep(const ConnectionManager *manager,
+                                   const struct timeval *lowest,
+                                   const int8_t allinactive)
+{
+  if (manager->size != 0)
+  {
+    if (((manager->size == 1) &&
+         (manager->head->state == Free)) ||
+        !allinactive)
+    {
+      return 0;
+    }
+    struct timeval now;
+    gettimeofday(&now, 0);
+
+    struct timeval one_second_later;
+    one_second_later.tv_sec =  lowest->tv_sec + 1;
+    one_second_later.tv_usec = lowest->tv_usec;
+    if(timercmp(&one_second_later, &now, >))
+    {
+      struct timeval time_to_sleep;
+      timersub(&one_second_later, &now, &time_to_sleep);
+      return time_to_sleep.tv_usec;
+    }
+  }
+
+  return 0;
 }
