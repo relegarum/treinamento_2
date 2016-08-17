@@ -44,14 +44,11 @@
 #include "../utils/request_manager.h"
 #include "../utils/thread.h"
 #include "../utils/test_suit.h"
+#include "../utils/Config.h"
 
 #define MAX_TIMEOUT 9999
 #define MAX_RETRIES 1000
 #define NUMBER_OF_THREADS 8
-
-ConnectionManager* manager_ptr = NULL;
-request_manager*   request_manager_pr = NULL;
-int32_t* listening_socket_ptr  = NULL;
 
 int32_t handle_arguments(int argc,
                          char **argv,
@@ -122,19 +119,29 @@ int32_t handle_arguments(int argc,
     }
   }
 
-  printf("base path: %s\n", path);
   return 0;
 }
 
 
-int terminate = 0;
+int signal_operation = 0;
 
-void handle_sigint(int signal_number)
+enum SignalOperationEnum
+{
+  Terminate = -1,
+  ReadFileSignal  =  1
+};
+
+void handle_signal(int signal_number)
 {
   printf("Signal %d\n", signal_number);
 
-  terminate = 1;
+  if (signal_number == SIGUSR1)
+  {
+    signal_operation = ReadFile;
+    return;
+  }
 
+  signal_operation = Terminate;
   return;
 }
 
@@ -161,21 +168,39 @@ void handle_socket_destroy(int *socket,
   }
 }
 
+int32_t prepare_port(char *port,
+                     int32_t *listener_socket,
+                     const uint32_t number_of_connections)
+{
+  if (setup_listening_connection(port, listener_socket) == -1)
+  {
+    return -1;
+  }
+
+  if (listen(*listener_socket, number_of_connections) == -1)
+  {
+    perror("Listen\n");
+    return -1;
+  }
+
+  return 0;
+}
+
 int main(int argc, char **argv)
 {
+  Config* config = create_config();
+
   //daemon(0 , 0);
   int32_t listening_sock_description = -1;
-  int32_t transmission_rate    = 0;
+  int32_t transmission_rate = 0;
 
   char *port = NULL;
   char path[PATH_MAX];
   memset(path, '\0', PATH_MAX);
 
   ConnectionManager manager = create_manager();
-  manager_ptr = &manager;
 
   request_manager req_manager = create_request_manager();
-  request_manager_pr = &req_manager;
 
   thread thread_pool[NUMBER_OF_THREADS];
   setup_threads(thread_pool, NUMBER_OF_THREADS, &req_manager);
@@ -190,23 +215,20 @@ int main(int argc, char **argv)
     goto exit;
   }
 
+  write_into_config_file(config, path, port, transmission_rate, getpid());
+
   create_default_response_files(path);
 
-  if (setup_listening_connection(port, &listening_sock_description) == -1)
+  if (prepare_port(port,
+                   &listening_sock_description,
+                   number_of_connections) == -1)
   {
     success = -1;
     goto exit;
   }
 
-  if (listen(listening_sock_description, number_of_connections) == -1)
-  {
-    perror("Listen\n");
-    success = -1;
-    goto exit;
-  }
-  listening_socket_ptr = &listening_sock_description;
-
-  signal(SIGINT, handle_sigint);
+  signal(SIGINT, handle_signal);
+  signal(SIGUSR1, handle_signal);
 
   printf("server: waiting for connections...\n");
 
@@ -231,9 +253,30 @@ int main(int argc, char **argv)
 
   while (1)
   {
-    if (terminate)
+    if (signal_operation == Terminate)
     {
       goto exit;
+    }
+
+    if (signal_operation == ReadFileSignal)
+    {
+      char new_port[MAX_PORT_SIZE];
+      signal_operation = 0;
+      read_config_file(config, path, new_port, &transmission_rate);
+      printf("New configuration!\n"
+             "Path: %s\n"
+             "Port: %s\n"
+             "Transmission Rate %d\n", path, new_port, transmission_rate);
+      if (strncmp(new_port, port, MAX_PORT_SIZE) != 0)
+      {
+        strncpy(port, new_port, MAX_PORT_SIZE);
+        handle_socket_destroy(&listening_sock_description,
+                              &manager,
+                              &greatest_file_desc,
+                              &master);
+        prepare_port(port, &listening_sock_description, number_of_connections);
+        FD_SET(listening_sock_description, &master);
+      }
     }
 
     read_fds   = master;
@@ -246,11 +289,13 @@ int main(int argc, char **argv)
                      &except_fds,
                      &timeout);
 
-   if ((ret == -1) || FD_ISSET(listening_sock_description, &except_fds) )
+    if ((ret == -1) || FD_ISSET(listening_sock_description, &except_fds) )
     {
-      perror("select error");
-      success = -1;
-      goto exit;
+      if (errno != EINTR)
+      {
+        perror("select error");
+      }
+      continue;
     }
 
     int8_t allinactive = 1;
@@ -425,5 +470,7 @@ exit:
     close(listening_sock_description);
   }
 
+  release_config(&config);
+  config = NULL;
   return success;
 }
