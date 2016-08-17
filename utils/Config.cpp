@@ -7,98 +7,139 @@
 #include "Config.h"
 #include <fstream>
 #include <iostream>
+#include <sstream>
+#include <limits.h>
+#include <unistd.h>
+#include <string.h>
 
-#include <QJsonObject>
-#include <QFile>
-
-namespace server
+Config::Config(const std::string& basePath,
+               const std::string& port,
+               const uint64_t speed)
+  : mBasePath(basePath),
+    mPort(port),
+    mSpeed(speed),
+    mConfigFileName(CONFIG_FILE_NAME)
 {
+}
 
-  const QString Config::LabelSpeed    = "speed";
-  const QString Config::LabelPort     = "port";
-  const QString Config::LabelBasePath = "base_path";
+std::string Config::getBasePath() const
+{
+  return mBasePath;
+}
 
-  Config::Config(const std::string& basePath,
-                 const uint16_t port,
-                 const uint64_t speed)
-    : mBasePath(basePath),
-      mPort(port),
-      mSpeed(speed),
-      mConfigFileName(CONFIG_FILE_NAME)
+std::string Config::getPort() const
+{
+  return mPort;
+}
+
+pid_t Config::getPid() const
+{
+  return mPid;
+}
+
+uint64_t Config::getSpeed() const
+{
+  return mSpeed;
+}
+
+void Config::setBasePath(const std::string &basePath)
+{
+  mBasePath = basePath;
+}
+
+void Config::setPort(const std::__cxx11::string port)
+{
+  mPort = port;
+}
+
+void Config::setSpeed(const uint64_t speed)
+{
+  mSpeed = speed;
+}
+
+void Config::setConfigFileName(const std::string& configFileName)
+{
+  mConfigFileName = configFileName;
+}
+
+void Config::setPid(const pid_t pid)
+{
+  mPid = pid;
+}
+
+void Config::write()
+{
+  std::fstream fileStream(mConfigFileName, std::ios::out);
+  if(!fileStream.is_open())
   {
-  }
-
-  std::string Config::getBasePath() const
-  {
-    return mBasePath;
-  }
-
-  uint16_t Config::getPort() const
-  {
-    return mPort;
-  }
-
-  uint64_t Config::getSpeed() const
-  {
-    return mSpeed;
-  }
-
-  void Config::setBasePath(const std::string &basePath)
-  {
-    mBasePath = basePath;
-  }
-
-  void Config::setPort(const uint16_t port)
-  {
-    mPort = port;
-  }
-
-  void Config::setSpeed(const uint64_t speed)
-  {
-    mSpeed = speed;
-  }
-
-  void Config::setConfigFileName(const std::string& configFileName)
-  {
-    mConfigFileName = configFileName;
-  }
-
-  void Config::write()
-  {
-    QJsonObject jsonObject;
-    jsonObject[LabelBasePath] = QString(mBasePath.c_str());
-    jsonObject[LabelPort]     = mPort;
-    jsonObject[LabelSpeed]    = mSpeed;
-
-    QFile file(mConfigFileName.c_str());
-    if (!file.open(QIODevice::WriteOnly))
-    {
-      qWarning("Coudn't open file to write\n");
-      return;
-    }
-
-    QJsonDocument jsonDocument(jsonObject);
-    file.write(jsonDocument.toJson());
+    std::cout << "Coudn't open file to write\n";
     return;
   }
 
-  void Config::read()
+  fileStream << mBasePath << "\n";
+  fileStream << mPort     << "\n";
+  fileStream << mSpeed    << "\n";
+  fileStream << mPid      << "\n";
+  return;
+}
+
+void Config::read()
+{
+  std::fstream fileStream(mConfigFileName, std::ios::in);
+  if(!fileStream.is_open())
   {
-    QFile file(mConfigFileName.c_str());
-    if (!file.open(QIODevice::ReadOnly))
-    {
-      std::cout << "Couldn't open file\n";
-      return;
-    }
-    QByteArray data = file.readAll();
-
-    QJsonDocument loadDoc(QJsonDocument::fromJson(data));
-    QJsonObject jsonObj = loadDoc.object();
-
-    mBasePath = jsonObj[LabelBasePath].toString().toStdString();
-    mPort     = jsonObj[LabelPort    ].toInt();
-    mSpeed    = jsonObj[LabelSpeed   ].toInt();
-
+    std::cout << "Couldn't open file\n";
     return;
   }
+
+  std::getline(fileStream, mBasePath);
+  std::getline(fileStream, mPort);
+
+  std::string speedStr;
+  std::getline(fileStream, speedStr);
+  std::stringstream issSpeed(speedStr);
+  issSpeed >> mSpeed;
+
+  std::string pidStr;
+  std::getline(fileStream, pidStr);
+  std::stringstream issPid(pidStr);
+  issPid >> mPid;
+
+  return;
+}
+
+Config *create_config()
+{
+  return new Config();
+}
+
+void release_config(Config **config)
+{
+  delete *config;
+}
+
+void write_into_config_file(Config *config,
+                            const char * const base_path,
+                            const char * const port,
+                            const uint32_t     speed,
+                            const pid_t        pid)
+{
+  config->setBasePath(base_path);
+  config->setPort(port);
+  config->setSpeed(speed);
+  config->setPid(pid);
+  config->write();
+}
+
+void read_config_file(Config   *config,
+                      char     *base_path,
+                      char     *port,
+                      int32_t  *speed)
+{
+  config->read();
+  memset(base_path, '\0', PATH_MAX);
+  memset(port, '\0', MAX_PORT_SIZE);
+  strncpy(base_path, config->getBasePath().c_str(), config->getBasePath().size());
+  strncpy(port, config->getPort().c_str(), config->getPort().size());
+  *speed = config->getSpeed();
 }
