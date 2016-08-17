@@ -13,6 +13,7 @@
 #define BASE_PATH        "."
 #define DEFAULT_SPEED    1024*1024*10
 #define CONFIG_FILE_NAME "/home/abaiao/repo/treinamento/build_server/server.config"
+#define DONT_SIGNAL      -1
 
 #ifdef __cplusplus
 
@@ -35,8 +36,8 @@ public:
   void setConfigFileName(const std::string& configFileName);
   void setPid(const pid_t pid);
 
-  void write();
-  void read();
+  bool write();
+  bool read();
 
 private:
   std::string   mBasePath;

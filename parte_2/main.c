@@ -38,6 +38,7 @@
 #include <fcntl.h>
 
 
+#include "../utils/handle_settings.h"
 #include "../utils/connection_manager.h"
 #include "../utils/connection_item.h"
 #include "../utils/http_utils.h"
@@ -46,82 +47,10 @@
 #include "../utils/test_suit.h"
 #include "../utils/Config.h"
 
+
 #define MAX_TIMEOUT 9999
 #define MAX_RETRIES 1000
 #define NUMBER_OF_THREADS 8
-
-int32_t handle_arguments(int argc,
-                         char **argv,
-                         char **port,
-                         char *path,
-                         int32_t* transmission_rate)
-{
-  const int32_t index_of_executable         = 0;
-  const int32_t index_of_port               = 1;
-  const int32_t index_of_path               = 2;
-  const int32_t index_of_transmission_rate  = 3;
-  const int32_t min_valid_port              = 1024;
-  const int32_t max_valid_port              = 65535;
-
-  if (argc < 3)
-  {
-    printf(" usage: %s port path transmission_rate\n",
-           argv[index_of_executable]);
-    return -1;
-  }
-
-  int32_t port_value = atoi(argv[index_of_port]);
-  if( port_value < min_valid_port || port_value > max_valid_port )
-  {
-    printf(" invalid value for port: %d!\n"
-           " Please use a port between - 1024 and 65535.\n", port_value );
-    return -1;
-  }
-
-  *port = argv[index_of_port];
-
-  DIR *dir = opendir(argv[index_of_path]);
-  if (dir == NULL)
-  {
-    printf(" invalid path! Please use a valid path!\n");
-    return -1;
-  }
-  closedir(dir);
-
-  if (strcmp(argv[index_of_path], ".") == 0)
-  {
-    if (getcwd(path, PATH_MAX) == NULL)
-    {
-      printf(" couldn't get the working directory\n");
-      return -1;
-    }
-  }
-  else
-  {
-    strncpy(path,argv[index_of_path], strlen(argv[index_of_path]));
-  }
-
-  if (argc < 4)
-  {
-    printf(" Transmission Rate not passed, setting 8kbps as default\n");
-    *transmission_rate = BUFSIZ;
-    return 0;
-  }
-  else
-  {
-    char *end_ptr = '\0';
-    *transmission_rate = strtol(argv[index_of_transmission_rate], &
-                                end_ptr, 10);
-    if (*transmission_rate <= 0)
-    {
-      printf(" Transmission Rate unknown, setting 8kbps as default\n");
-      *transmission_rate = BUFSIZ;
-    }
-  }
-
-  return 0;
-}
-
 
 int signal_operation = 0;
 

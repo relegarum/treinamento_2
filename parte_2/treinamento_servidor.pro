@@ -1,8 +1,8 @@
 TEMPLATE = app
 CONFIG += console
 CONFIG -= app_bundle
-##CONFIG -= qt
-QT     += widgets
+CONFIG -= qt
+##QT     += widgets
 
 QMAKE_CXXFLAGS += -std=c++0x -pthread
 LIBS += -pthread
@@ -17,7 +17,8 @@ SOURCES += \
     ../utils/request_manager.c \
     ../utils/thread.c \
     ../utils/Config.cpp \
-    main.c
+    main.c \
+    ../utils/handle_settings.c
 
 HEADERS += \
     ../utils/http_utils.h \
@@ -28,7 +29,8 @@ HEADERS += \
     ../utils/request_list.h \
     ../utils/request_manager.h \
     ../utils/thread.h \
-    ../utils/Config.h
+    ../utils/Config.h \
+    ../utils/handle_settings.h
 
 DISTFILES += \
     ../build_server/script_test.py \

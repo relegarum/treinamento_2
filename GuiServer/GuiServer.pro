@@ -14,11 +14,13 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
     ../utils/Config.cpp \
-    ../Viewer/form.cpp
+    ../Viewer/form.cpp \
+    ../utils/handle_settings.c
 
 HEADERS  += \
     ../utils/Config.h \
-    ../Viewer/form.h
+    ../Viewer/form.h \
+    ../utils/handle_settings.h
 
 FORMS    += \
     ../Viewer/form.ui

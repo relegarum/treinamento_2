@@ -147,12 +147,12 @@ void setup_file_path(char *base_path, char *resource, char *full_path)
 
 int8_t verify_file_path(char *base_path, char *full_path)
 {
-  char real_path[PATH_MAX];
-
   const int32_t path_size = strlen(base_path);
 
+  char real_path[PATH_MAX];
   memset(real_path, '\0', PATH_MAX);
   realpath(full_path, real_path); /**/
+
   if (*real_path != '\0')
   {
     if (strncmp(base_path, real_path, path_size) != 0)

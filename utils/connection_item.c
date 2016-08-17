@@ -159,6 +159,7 @@ int32_t receive_request(Connection *item, const uint32_t transmission_rate)
   item->request = realloc(item->request,
                           sizeof(char)*(item->read_data +
                                         transmission_rate + 1));
+  memset(item->request + item->read_data, '\0', transmission_rate + 1);
 
   char *carriage = item->request + item->read_data;
 
@@ -209,7 +210,7 @@ int32_t receive_request(Connection *item, const uint32_t transmission_rate)
 
   if (end_of_header_flag)
   {
-    item->request[item->read_data + 1] = '\0'; /* *carriage = '\0*/
+    item->request[item->read_data] = '\0'; /* *carriage = '\0*/
     item->state = Handling;
   }
 
@@ -281,14 +282,6 @@ void handle_request(Connection *item, char *path)
   }
   setup_file_path(path, resource, file_final_path);
 
-  /*if (verify_file_path(path, file_final_path) != 0)
-  {
-    item->header = strdup(HeaderNotFound);
-    item->file_components.file_ptr = not_found_file;
-    item->error = 1;
-    goto exit_handle;
-  }*/
-
   if (strncmp(operation, "GET", OPERATION_SIZE) == 0)
   {
     if (handle_get_method(item, path, file_final_path) != 0 )
@@ -334,15 +327,6 @@ int32_t get_resource_data(Connection *item, char *file_name, char *mime)
   {
     return -1;
   }
-
-  /*if (!is_regular_file(&(item->file_components)))
-  {
-    item->header = strdup(HeaderBadRequest);
-    fclose(item->file_components.file_ptr);
-    item->file_components.file_ptr = NULL;
-    item->error = 1;
-    return -1;
-  }*/
 
   item->resource_size = item->file_components.stats.st_size;
   if (file_name != NULL)
@@ -659,10 +643,16 @@ int32_t handle_put_method(Connection *item, char *path, char *full_path)
   ret = get_file_state(item);
   ret = extract_content_length_from_header(item);
 
+  if (item->resource_size == 0)
+  {
+    item->header = strdup(HeaderOk);
+  }
+
  exit_handle:
-  if (item->error)
+  if (item->error || item->resource_size == 0)
   {
     item->state = SendingHeader;
+    return ret;
   }
 
   if (item->data_to_write_size > 0)

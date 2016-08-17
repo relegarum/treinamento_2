@@ -67,29 +67,29 @@ void Config::setPid(const pid_t pid)
   mPid = pid;
 }
 
-void Config::write()
+bool Config::write()
 {
   std::fstream fileStream(mConfigFileName, std::ios::out);
   if(!fileStream.is_open())
   {
     std::cout << "Coudn't open file to write\n";
-    return;
+    return false;
   }
 
   fileStream << mBasePath << "\n";
   fileStream << mPort     << "\n";
   fileStream << mSpeed    << "\n";
   fileStream << mPid      << "\n";
-  return;
+  return true;
 }
 
-void Config::read()
+bool Config::read()
 {
   std::fstream fileStream(mConfigFileName, std::ios::in);
-  if(!fileStream.is_open())
+  if (!fileStream.is_open())
   {
     std::cout << "Couldn't open file\n";
-    return;
+    return false;
   }
 
   std::getline(fileStream, mBasePath);
@@ -105,7 +105,7 @@ void Config::read()
   std::stringstream issPid(pidStr);
   issPid >> mPid;
 
-  return;
+  return true;
 }
 
 Config *create_config()
@@ -115,6 +115,8 @@ Config *create_config()
 
 void release_config(Config **config)
 {
+  (*config)->setPid(DONT_SIGNAL);
+  (*config)->write();
   delete *config;
 }
 
@@ -139,7 +141,8 @@ void read_config_file(Config   *config,
   config->read();
   memset(base_path, '\0', PATH_MAX);
   memset(port, '\0', MAX_PORT_SIZE);
-  strncpy(base_path, config->getBasePath().c_str(), config->getBasePath().size());
+  realpath(config->getBasePath().c_str(), base_path);
+  //strncpy(base_path, config->getBasePath().c_str(), config->getBasePath().size());
   strncpy(port, config->getPort().c_str(), config->getPort().size());
   *speed = config->getSpeed();
 }
