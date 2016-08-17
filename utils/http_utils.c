@@ -368,7 +368,6 @@ void free_file(FILE **file)
 
 void create_default_response_files(char *path)
 {
-  printf("path %s", path);
   int32_t path_length = strlen(path);
   create_file(&bad_request_file,     HTML_ERROR(400, Bad Request),                path, path_length, HtmlBadRequestFileName);
   create_file(&internal_error_file,  HTML_ERROR(500, Internal Server Error),      path, path_length, HtmlInternalErrorName);
@@ -391,8 +390,9 @@ void clean_default_files()
 }
 
 
-int setup_listening_connection(char* port, int32_t* listening_socket)
+int setup_listening_connection(char* port, int32_t *listener_socket)
 {
+  int32_t new_listener;
   int success = 0;
   struct addrinfo *servinfo = NULL;
   const int32_t    true_value      = 1;
@@ -417,7 +417,7 @@ int setup_listening_connection(char* port, int32_t* listening_socket)
        serverinfo_ptr != NULL;
        serverinfo_ptr = serverinfo_ptr->ai_next)
   {
-    if ((*listening_socket = socket(serverinfo_ptr->ai_family,
+    if ((new_listener = socket(serverinfo_ptr->ai_family,
                                    serverinfo_ptr->ai_socktype,
                                    serverinfo_ptr->ai_protocol)) == -1)
     {
@@ -425,7 +425,7 @@ int setup_listening_connection(char* port, int32_t* listening_socket)
       continue;
     }
 
-    if ((success = setsockopt(*listening_socket,
+    if ((success = setsockopt(new_listener,
                               SOL_SOCKET,
                               SO_REUSEADDR,
                               &true_value,
@@ -436,11 +436,11 @@ int setup_listening_connection(char* port, int32_t* listening_socket)
       goto exit_setup_listening;
     }
 
-    if (bind(*listening_socket,
+    if (bind(new_listener,
              serverinfo_ptr->ai_addr,
              serverinfo_ptr->ai_addrlen) == -1)
     {
-      close(*listening_socket);
+      close(new_listener);
       perror("server bind");
       continue;
     }
@@ -465,7 +465,17 @@ exit_setup_listening:
     serverinfo_ptr = NULL;
   }
 
-  return 0;
+  if (*listener_socket != -1)
+  {
+    close(*listener_socket);
+  }
+
+  if (success != -1)
+  {
+   *listener_socket = new_listener;
+  }
+
+  return success;
 }
 
 int32_t verify_protocol(char *protocol)

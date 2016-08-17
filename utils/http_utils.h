@@ -80,7 +80,7 @@ int verify_connection(ConnectionManager *manager,
 
 void create_default_response_files(char *path);
 
-int setup_listening_connection(char* port, int32_t* listening_socket);
+int setup_listening_connection(char* port, int32_t* listener_socket);
 
 void clean_default_files();
 
