@@ -21,7 +21,7 @@ private slots:
 
 private:
   Ui::Form *ui;
-  server::Config mConfig;
+  Config mConfig;
 };
 
 #endif // FORM_H
