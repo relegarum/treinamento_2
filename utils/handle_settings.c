@@ -1,3 +1,10 @@
+/* \file handle_settings.c
+ *
+ * \brief Contem a implementacao de funcoes de validação de settings
+ * ativas.
+ *
+ * "$Id: $"
+*/
 #include "handle_settings.h"
 #include <stdio.h>
 #include <stdlib.h>

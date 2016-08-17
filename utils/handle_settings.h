@@ -1,3 +1,10 @@
+/* \file handle_settings.h
+ *
+ * \brief Contem a implementacao de funcoes de validação de settings
+ * ativas.
+ *
+ * "$Id: $"
+*/
 #ifndef HANDLE_SETTINGS_H
 #define HANDLE_SETTINGS_H
 #include <stdint.h>
