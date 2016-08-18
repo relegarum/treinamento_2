@@ -162,6 +162,18 @@ int8_t verify_file_path(char *base_path, char *full_path)
       {
         if (strncmp(work_directory, real_path, path_size) != 0)
         {
+          struct stat buf;
+          if ((stat(full_path, &buf) == -1) &&
+              !S_ISLNK(buf.st_mode))
+          {
+            perror("stat");
+            goto clear_full_path;
+          }
+
+          if (strncmp(work_directory, full_path, path_size) == 0)
+          {
+            return 0;
+          }
           goto clear_full_path;
         }
       }

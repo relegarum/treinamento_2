@@ -12,13 +12,15 @@
 #include <unistd.h>
 #include <string.h>
 
+const std::string Config::ConfigFilePath = "/home/abaiao/repo/treinamento/build_server/server.config";
+
 Config::Config(const std::string& basePath,
                const std::string& port,
                const uint64_t speed)
   : mBasePath(basePath),
     mPort(port),
     mSpeed(speed),
-    mConfigFileName(CONFIG_FILE_NAME)
+    mConfigFileName(ConfigFilePath)
 {
 }
 

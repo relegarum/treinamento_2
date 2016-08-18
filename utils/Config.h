@@ -12,7 +12,6 @@
 #define DEFAULT_PORT     "2196"
 #define BASE_PATH        "."
 #define DEFAULT_SPEED    1024*1024*10
-#define CONFIG_FILE_NAME "/home/abaiao/repo/treinamento/build_server/server.config"
 #define DONT_SIGNAL      -1
 
 #ifdef __cplusplus
@@ -45,6 +44,8 @@ private:
   int32_t       mSpeed;
   std::string   mConfigFileName;
   pid_t         mPid;
+
+  static const std::string ConfigFilePath;
 };
 
 #else
