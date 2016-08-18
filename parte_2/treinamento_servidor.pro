@@ -4,7 +4,8 @@ CONFIG -= app_bundle
 CONFIG -= qt
 ##QT     += widgets
 
-QMAKE_CXXFLAGS += -std=c++0x -pthread
+QMAKE_CXXFLAGS += -std=c++11
+QMAKE_CXXFLAGS += -pthread
 LIBS += -pthread
 
 SOURCES += \
