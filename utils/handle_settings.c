@@ -16,11 +16,12 @@
 
 #define MIN_PORT 1024
 #define MAX_PORT 65535
+#define MAX_PORT_SIZE 5
 #define MAX_TRANSMISSION_RATE_SIZE 10
 
 int32_t handle_arguments(int argc,
                          char **argv,
-                         char **port,
+                         char *port,
                          char *path,
                          int32_t* transmission_rate)
 {
@@ -42,7 +43,7 @@ int32_t handle_arguments(int argc,
            " Please use a port between - 1024 and 65535.\n", argv[index_of_port] );
     return -1;
   }
-  *port = argv[index_of_port];
+  strncpy(port, argv[index_of_port], MAX_PORT_SIZE);
 
   if (verify_if_valid_path(argv[index_of_path]) == -1)
   {

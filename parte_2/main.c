@@ -119,16 +119,20 @@ int main(int argc, char **argv)
 {
   Config* config = create_config();
 
-  daemon(0, 0);
+  int success = 0;
+  success = daemon(0, 0);
+  if (success == -1)
+  {
+    goto exit;
+  }
+
   int32_t listening_sock_description = -1;
   int32_t transmission_rate = 0;
-
-  char *port = NULL;
+  char port[MAX_PORT_SIZE];
   char path[PATH_MAX];
   memset(path, '\0', PATH_MAX);
 
   ConnectionManager manager = create_manager();
-
   request_manager req_manager = create_request_manager();
 
   thread thread_pool[NUMBER_OF_THREADS];
@@ -137,11 +141,13 @@ int main(int argc, char **argv)
 
 
   const int32_t number_of_connections     = 300;
-  int success = 0;
-  if (handle_arguments(argc, argv, &port, path, &transmission_rate) == -1)
+
+  if (handle_arguments(argc, argv, port, path, &transmission_rate) == -1)
   {
-    success = 1;
-    goto exit;
+    /*In case without arguments set default values*/
+    strcpy(path,".");
+    strcpy(port,"8080");
+    transmission_rate = BUFSIZ;
   }
 
   write_into_config_file(config, path, port, transmission_rate, getpid());

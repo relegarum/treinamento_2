@@ -11,7 +11,7 @@
 
 int32_t handle_arguments(int argc,
                          char **argv,
-                         char **port,
+                         char *port,
                          char *path,
                          int32_t* transmission_rate);
 
