@@ -160,7 +160,7 @@ int32_t receive_request(Connection *item, const uint32_t transmission_rate)
                           sizeof(char) * (item->read_data
                                           + rate
                                           + 1));
-  memset(item->request + item->read_data, '\0', transmission_rate + 1);
+  memset(item->request + item->read_data, '\0', rate + 1);
 
   char *carriage = item->request + item->read_data;
 
@@ -524,11 +524,7 @@ void queue_request_to_read(Connection *item,
 
   handle_new_socket(item->datagram_socket, master, greatest_socket_description);
 
-  //set_socket_as_nonblocking(item->datagram_socket);
-  /*struct timeval timeout;
-  timeout.tv_sec = 0;
-  timeout.tv_usec = 1000; // 1ms
-  set_socket_timeout(item->datagram_socket, &timeout);*/
+  /*set_socket_as_nonblocking(item->datagram_socket);*/
 
   uint32_t rate = (BUFSIZ < transmission_rate)? BUFSIZ - 1: transmission_rate;
   request_list_node *node = create_request_to_read(item->file_components.file_ptr,

@@ -43,8 +43,6 @@ void remove_connection_in_list(ConnectionManager *manager, Connection *item)
            (item->next_ptr == NULL))
   {
     free_connection_item(item);
-    /*free(item);*/
-    /*item = NULL; Check this*/
     manager->head = NULL;
     manager->tail = NULL;
     return;
@@ -61,8 +59,6 @@ void remove_connection_in_list(ConnectionManager *manager, Connection *item)
   }
 
   free_connection_item(item);
-  /*free(item);*/
-  /*item = NULL; Check this*/
 }
 
 void free_list(ConnectionManager *manager)
