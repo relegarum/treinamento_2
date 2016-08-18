@@ -57,6 +57,14 @@ int8_t write_treatment(FileComponents *file, char *file_path);
 
 void setup_file_path(char *base_path, char *resource, char *full_path);
 int8_t verify_file_path(char *base_path, char *full_path);
+int8_t is_symbolic_link_and_valid(char *base_path,
+                                         const int32_t base_path_len,
+                                         char *full_path);
+
+int8_t is_realpath_inside_base_path(char *base_path,
+                                              const int32_t base_path_len,
+                                              char *real_path);
+
 int32_t get_file_mime(uint32_t full_path_size, char *full_path, char *mime);
 int32_t treat_file_after_put(FileComponents *file, uint8_t error);
 

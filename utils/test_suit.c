@@ -67,8 +67,12 @@ int32_t test_verify_path()
   char *resourceOkWithReturn = "/release/../index.html";
   char *resourceOkWithReturn2 = "/release/teste/../../index.html";
   char *resourceWrong = "/index3.html";
+  char *resourceLink = "/valgrind.link";
 
   char full_path[PATH_MAX];
+
+  setup_file_path(path, "index.html", full_path);
+
   setup_file_path(path, resourceOk, full_path);
   if (verify_file_path(path, full_path) != 0)
   {
@@ -77,6 +81,13 @@ int32_t test_verify_path()
   }
 
   if (strncmp(test_return,full_path, strlen(test_return)) != 0 )
+  {
+    printf("Error test Ok");
+    return 1;
+  }
+
+  setup_file_path(path, resourceLink, full_path);
+  if (verify_file_path(path, full_path) != 0)
   {
     printf("Error test Ok");
     return 1;

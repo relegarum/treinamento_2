@@ -145,6 +145,43 @@ void setup_file_path(char *base_path, char *resource, char *full_path)
   snprintf(full_path, file_name_size, "%s%s", base_path, resource);
 }
 
+int8_t is_symbolic_link_and_valid(char *base_path,
+                                         const int32_t base_path_len,
+                                         char *full_path)
+{
+  struct stat buf;
+  if (lstat(full_path, &buf) == -1)
+  {
+    perror("stat");
+    return 0;
+  }
+
+  if (!S_ISLNK(buf.st_mode))
+  {
+    return 0;
+  }
+
+  if (strncmp(base_path, full_path, base_path_len) != 0)
+  {
+    return 0;
+  }
+
+  return 1;
+}
+
+int8_t is_realpath_inside_base_path(char *base_path,
+                                              const int32_t base_path_len,
+                                              char *real_path)
+
+{
+  if (strncmp(base_path, real_path, base_path_len) == 0)
+  {
+    return 1;
+  }
+
+  return 0;
+}
+
 int8_t verify_file_path(char *base_path, char *full_path)
 {
   const int32_t path_size = strlen(base_path);
@@ -153,51 +190,19 @@ int8_t verify_file_path(char *base_path, char *full_path)
   memset(real_path, '\0', PATH_MAX);
   realpath(full_path, real_path); /**/
 
-  if (*real_path != '\0')
+  /*if (strncmp(full_path, real_path, strlen(full_path)) == 0)
   {
-    if (strncmp(base_path, real_path, path_size) != 0)
-    {
-      char work_directory[PATH_MAX];
-      if (getcwd(work_directory, PATH_MAX)!= NULL)
-      {
-        if (strncmp(work_directory, real_path, path_size) != 0)
-        {
-          struct stat buf;
-          if ((stat(full_path, &buf) == -1) &&
-              !S_ISLNK(buf.st_mode))
-          {
-            perror("stat");
-            goto clear_full_path;
-          }
+    return 0;
+  }*/
 
-          if (strncmp(work_directory, full_path, path_size) == 0)
-          {
-            return 0;
-          }
-          goto clear_full_path;
-        }
-      }
-      else
-      {
-        goto clear_full_path;
-      }
-    }
-
-    if (strncmp(real_path, full_path, strlen(full_path)) != 0)
-    {
-      goto clear_full_path;
-    }
-  }
-  else
+  if (is_realpath_inside_base_path(base_path, path_size, real_path)
+      || is_symbolic_link_and_valid(base_path, path_size, full_path))
   {
-    goto clear_full_path;
+    memset(full_path, '\0', PATH_MAX);
+    strncpy(full_path, real_path, strlen(real_path) + 1);
+    return 0;
   }
 
-  memset(full_path, '\0', PATH_MAX);
-  strncpy(full_path, real_path, strlen(real_path) + 1);
-  return 0;
-
-clear_full_path:
   memset(full_path, '\0', PATH_MAX);
   return 1;
 }
