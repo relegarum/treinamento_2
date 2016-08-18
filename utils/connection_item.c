@@ -157,8 +157,9 @@ int32_t receive_request(Connection *item, const uint32_t transmission_rate)
 {
   uint32_t rate = (BUFSIZ < transmission_rate) ? BUFSIZ: transmission_rate;
   item->request = realloc(item->request,
-                          sizeof(char)*(item->read_data +
-                                        transmission_rate + 1));
+                          sizeof(char) * (item->read_data
+                                          + rate
+                                          + 1));
   memset(item->request + item->read_data, '\0', transmission_rate + 1);
 
   char *carriage = item->request + item->read_data;

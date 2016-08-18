@@ -126,9 +126,9 @@ uint32_t handle_response_status(char *http_response)
 int32_t get_header(int socket_descriptor, char *resource_required, int32_t *header_length, int32_t *content_length)
 {
   uint32_t resource_required_length = strlen(resource_required);
-  uint32_t request_msg_size         = MAX_REQUEST_MASK_SIZE +
-                                      ((resource_required_length != 0) ? resource_required_length :
-                                                                         strlen(IndexStr));
+  uint32_t request_msg_size         = MAX_REQUEST_MASK_SIZE
+                                      + ((resource_required_length != 0) ? resource_required_length :
+                                                                           strlen(IndexStr));
 
   char *request_msg = malloc(sizeof(char)*request_msg_size);
 
@@ -233,7 +233,7 @@ int32_t download_file(int socket_descriptor,
   if (bytes_received < header_length)
   {
     carriage = &header[ bytes_received ];
-    bytes_received = recv( socket_descriptor, carriage, ( header_length - bytes_received), 0);
+    bytes_received = recv( socket_descriptor, carriage, (header_length - bytes_received), 0);
   }
   free( header );
 

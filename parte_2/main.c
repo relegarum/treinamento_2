@@ -320,8 +320,8 @@ int main(int argc, char **argv)
                               &greatest_file_desc);
       }
 
-      if (ptr->state == WaitingFromIORead &&
-          FD_ISSET(ptr->datagram_socket, &read_fds))
+      if (ptr->state == WaitingFromIORead
+          && FD_ISSET(ptr->datagram_socket, &read_fds))
       {
         receive_from_thread_read(ptr, transmission_rate);
         if (ptr->state != ReadingFromFile)
@@ -333,8 +333,8 @@ int main(int argc, char **argv)
         }
       }
 
-      if (ptr->state == WaitingFromIOWrite &&
-          FD_ISSET(ptr->datagram_socket, &read_fds))
+      if (ptr->state == WaitingFromIOWrite
+          && FD_ISSET(ptr->datagram_socket, &read_fds))
       {
 
         receive_from_thread_write(ptr);
