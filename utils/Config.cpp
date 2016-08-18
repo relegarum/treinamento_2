@@ -135,16 +135,21 @@ void write_into_config_file(Config *config,
   config->write();
 }
 
-void read_config_file(Config   *config,
+int8_t read_config_file(Config   *config,
                       char     *base_path,
                       char     *port,
                       int32_t  *speed)
 {
-  config->read();
+  if (!config->read())
+  {
+    return 0;
+  }
   memset(base_path, '\0', PATH_MAX);
   memset(port, '\0', MAX_PORT_SIZE);
   realpath(config->getBasePath().c_str(), base_path);
   //strncpy(base_path, config->getBasePath().c_str(), config->getBasePath().size());
   strncpy(port, config->getPort().c_str(), config->getPort().size());
   *speed = config->getSpeed();
+
+  return 1;
 }

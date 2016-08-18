@@ -65,10 +65,10 @@ void write_into_config_file(Config *config,
                                     const uint32_t     speed,
                                     const pid_t        pid);
 
-void read_config_file(Config   *config,
-                      char     *base_path,
-                      char     *port,
-                      int32_t *speed);
+int8_t read_config_file(Config   *config,
+                        char     *base_path,
+                        char     *port,
+                        int32_t *speed);
 #ifdef __cplusplus
 }
 #endif
