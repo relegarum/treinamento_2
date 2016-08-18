@@ -8,7 +8,7 @@ PORT  = "8080"
 IP = "localhost"
 
 number_of_items = 4 
-download_file = '/suse_default.iso'
+download_file = '/ahoy.iso'
 upload_file   = 'ahoy.iso'
 file_urls = IP +':' + PORT + download_file
 #file_urls = [IP +':' + PORT + '/pdfs/evolucaoDosCodecs.pdf',
@@ -29,7 +29,7 @@ def downloadFile(file_url, fileout_name,index):
   os.system('wget -nc  ' + file_url + ' -O arquivos_download/' 
     + fileout_name + "_" + str(index) )
   print('#### Download end ---> '+ str(index) +' - '+ fileout_name + " ") 
-  os.system('cmp ' + fileout_name  + ' arquivos_download/' + fileout_name + '_' + str(index)) 
+  #os.system('cmp ' + fileout_name  + ' arquivos_download/' + fileout_name + '_' + str(index)) 
 for i in range(0,number_of_items):
   print("-----------------------------------------------------")
   if i % 2 != 0:

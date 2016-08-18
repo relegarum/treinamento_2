@@ -1,6 +1,7 @@
 #include "form.h"
 #include "ui_form.h"
 #include "signal.h"
+#include <unistd.h>
 
 #include <sstream>
 #include <QMessageBox>
@@ -20,6 +21,12 @@ Form::Form(QWidget *parent) :
   ui(new Ui::Form)
 {
   ui->setupUi(this);
+
+  char path_base[PATH_MAX];
+  if (getcwd(path_base, PATH_MAX) != NULL)
+  {
+    ui->ui_path_text->setText(path_base);
+  }
 }
 
 Form::~Form()
