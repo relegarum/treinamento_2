@@ -145,9 +145,12 @@ int main(int argc, char **argv)
   if (handle_arguments(argc, argv, port, path, &transmission_rate) == -1)
   {
     /*In case without arguments set default values*/
-    strcpy(path,".");
-    strcpy(port,"8080");
-    transmission_rate = BUFSIZ;
+    if (!read_config_file(config, path, port, &transmission_rate))
+    {
+      strcpy(path,".");
+      strcpy(port,"8080");
+      transmission_rate = BUFSIZ;
+    }
   }
 
   write_into_config_file(config, path, port, transmission_rate, getpid());
@@ -197,20 +200,22 @@ int main(int argc, char **argv)
     {
       char new_port[MAX_PORT_SIZE];
       signal_operation = 0;
-      read_config_file(config, path, new_port, &transmission_rate);
-      printf("New configuration!\n"
-             "Path: %s\n"
-             "Port: %s\n"
-             "Transmission Rate %d\n", path, new_port, transmission_rate);
-      if (strncmp(new_port, port, MAX_PORT_SIZE) != 0)
+      if (read_config_file(config, path, new_port, &transmission_rate))
       {
-        strncpy(port, new_port, MAX_PORT_SIZE);
-        handle_socket_destroy(&listening_sock_description,
-                              &manager,
-                              &greatest_file_desc,
-                              &master);
-        prepare_port(port, &listening_sock_description, number_of_connections);
-        FD_SET(listening_sock_description, &master);
+        printf("New configuration!\n"
+               "Path: %s\n"
+               "Port: %s\n"
+               "Transmission Rate %d\n", path, new_port, transmission_rate);
+        if (strncmp(new_port, port, MAX_PORT_SIZE) != 0)
+        {
+          strncpy(port, new_port, MAX_PORT_SIZE);
+          handle_socket_destroy(&listening_sock_description,
+                                &manager,
+                                &greatest_file_desc,
+                                &master);
+          prepare_port(port, &listening_sock_description, number_of_connections);
+          FD_SET(listening_sock_description, &master);
+        }
       }
     }
 
