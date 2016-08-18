@@ -12,7 +12,7 @@
 #include <unistd.h>
 #include <string.h>
 
-const std::string Config::ConfigFilePath = "/home/abaiao/repo/treinamento/build_server/server.config";
+const std::string Config::ConfigFilePath = "/tmp/server.config";
 
 Config::Config(const std::string& basePath,
                const std::string& port,

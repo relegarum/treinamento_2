@@ -4,7 +4,7 @@ import os
 from multiprocessing import Process
 import time
 
-PORT  = "2196"
+PORT  = "8080"
 IP = "localhost"
 
 number_of_items = 4 

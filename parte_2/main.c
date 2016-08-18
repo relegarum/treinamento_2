@@ -119,7 +119,7 @@ int main(int argc, char **argv)
 {
   Config* config = create_config();
 
-  //daemon(0 , 0);
+  daemon(0, 0);
   int32_t listening_sock_description = -1;
   int32_t transmission_rate = 0;
 
